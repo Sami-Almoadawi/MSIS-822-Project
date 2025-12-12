@@ -51,7 +51,7 @@ We use a large dataset of **41,940 Arabic research abstracts**, composed of:
 | Validation | 6,291 | 15% |
 | Testing | 6,291 | 15% |
 | Total Samples | 41,940 | 100% |
-| Classes | 0 (AI), 1 (Human) |
+| Classes | 0 (AI), 1 (Human) | 2
 
 Each entry contains:
 
@@ -65,19 +65,19 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 ---
 ##  Traditional Machine Learning Results
 
-| **Model**    | **Accuracy** | **Precision** | **Recall(Human)** | **F1-Score(AI)** |
-|----------------------|------------- -|---------------|------------|---------------|
-| Logistic Regression  | 0.8609        | 0.8619        | 0.0223       | 0.9251        |
-| SVM                  | 0.8614        | 0.8614          | 0.0       | 0.9255          |
-| Random Forest        | **0.8934**    | **0.8946**      | **0.3600** | **0.8845**      |
-| XGBoost              | 0.8614        | 0.8615          | 0.0011     | 0.9255          |
-| Naive Bayes          | 0.8617        | 0.8607          | 0.0045       | 0.9256          |
+| **Model**             | **Accuracy** | **Precision** | **Recall** | **F1-score** |
+|----------------------|--------------|---------------|------------|---------------|
+| Random Forest        | **0.978**    | **0.98**      | **0.98**   | **0.98**      |
+| Logistic Regression  | 0.962        | 0.96          | 0.96       | 0.96          |
+| SVM                  | 0.975        | 0.98          | 0.98       | 0.98          |
+| XGBoost              | 0.969        | 0.97          | 0.95       | 0.97          |
 
 ##  Deep Learning Results
 
 | **Model**                     | **Accuracy** | **Precision** | **Recall** | **F1-score** |
 |------------------------------|--------------|---------------|------------|---------------|
-| Feedforward NN + BERT (768D) | 0.8617        | 0.9437          | 0.8713  | 0.9257          |
+| Feedforward NN + BERT (768D) | 0.8617        | 0.9437       | 0.8713     | 0.9257        |
+
 
 
 
