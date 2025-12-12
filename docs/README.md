@@ -28,8 +28,6 @@ The system incorporates sophisticated **Arabic preprocessing**, **sentence-trans
 
 This assignment is defined as a **binary classification problem**:
 
-@@ -33,50 +30,50 @@
-
 ---
 
 #  Dataset Description
@@ -74,5 +72,6 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 | **Model**                     | **Accuracy** | **Precision** | **Recall** | **F1-score** |
 |------------------------------|--------------|---------------|------------|---------------|
 | Feedforward NN + BERT (768D) | 0.8617        | 0.9437          | 0.8713  | 0.9257          |
+
 
 
