@@ -5,8 +5,8 @@
 
 - [Project Overview](#Project-Overview)
 - [Project Objectives](#Project-Objectives)
+- [Project Structure](#Project-Structure)
 - [Task Description](#task-description)
-- [Project Objectives](#Project-Objectives)
 - [Dataset Description](#dataset-Description)
 - [Methodology](#Methodology)
 - [Classification Models](#MClassification-Models)
@@ -21,7 +21,6 @@ This repository includes the code and tools for distinguishing between **AI-gene
 The system incorporates sophisticated **Arabic preprocessing**, **sentence-transformer embeddings**, and a collection of **machine learning/deep learning classifiers** for enhanced performance.
 
 ---
-
 #  Project Objectives
 
 - Build a classification model to detect AI-generated Arabic text
@@ -30,26 +29,14 @@ The system incorporates sophisticated **Arabic preprocessing**, **sentence-trans
 - Achieve high accuracy in distinguishing between text types
 
 ---
-
-#  Methodology
-
-- **Normalization:** Unicode normalization, remove non-Arabic chars, tatweel, Persian chars, hamza variants.
-- **Diacritics Removal:** Remove all tashkeel (fatha, damma, kasra, shadda, etc.).
-- **Stopwords Removal:** Filter Arabic stopwords using NLTK corpus.
-- **Stemming:** ISRI stemmer for Arabic word roots.
-
----
-
-#  Classification Models
-
-- **Logistic Regression** - Baseline linear model
-- **Random Forest** - Ensemble of decision trees
-- **Gradient Boosting** - Iterative tree enhancement
-- **Support Vector Machine (SVM)** - Optimal hyperplane separator
-- **Neural Network** - Multi-layer deep learning model
+# Project Structure
+The code is divided into 4 Phases based on the original script:
+1. **Phase 1:** Data Acquisition & Initial Exploration (Stats, Visuals).
+2. **Phase 2:** Data Preprocessing (Normalization, Stemming) & EDA.
+3. **Phase 3:** Feature Engineering (Stylometric features 6, 29, 52, 75 + BERT L2-Norm).
+4. **Phase 4:** Modeling (ML Classifiers + Neural Network) & Evaluation.
 
 ---
-
 #  Task Description
 
 The assignment is defined as a binary classification problem:
@@ -105,6 +92,25 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 | **Model**                     | **Accuracy** | **Precision** | **Recall** | **F1-score** |
 |------------------------------|--------------|---------------|------------|---------------|
 | Feedforward NN + BERT (768D) | 0.8617        | 0.9437       | 0.8713     | 0.9257        |
+
+---
+
+#  Methodology
+
+- **Normalization:** Unicode normalization, remove non-Arabic chars, tatweel, Persian chars, hamza variants.
+- **Diacritics Removal:** Remove all tashkeel (fatha, damma, kasra, shadda, etc.).
+- **Stopwords Removal:** Filter Arabic stopwords using NLTK corpus.
+- **Stemming:** ISRI stemmer for Arabic word roots.
+
+---
+
+#  Classification Models
+
+- **Logistic Regression** - Baseline linear model
+- **Random Forest** - Ensemble of decision trees
+- **Gradient Boosting** - Iterative tree enhancement
+- **Support Vector Machine (SVM)** - Optimal hyperplane separator
+- **Neural Network** - Multi-layer deep learning model
 
 ---
 
