@@ -9,9 +9,8 @@
 - [Methodology](#Methodology)
 - [Classification Models](#MClassification-Models)
 - [Results & Analysis](#Results-&-Analysis)
+- [Conclusion & Future Work](#Conclusion-&-Future-Work)
 - [References](#References)
-
-
 ---
 
 #  Project Summary
@@ -105,6 +104,10 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 |------------------------------|--------------|---------------|------------|---------------|
 | Feedforward NN + BERT (768D) | 0.8617        | 0.9437       | 0.8713     | 0.9257        |
 
+---
+
+#  Conclusion & Future Work
+This project explored AI-generated Arabic research abstract detection using a hybrid approach combining stylometric features and a BERT CLS scalar. Evaluated on the KFUPM-JRCAI corpus, various classifiers were tested, with **Random Forest** performing best in balancing recall and overall accuracy. Results indicate that integrating simple semantic signals from BERT can effectively aid Arabic AI-text detection. However, limitations include reliance on a single dataset and a basic BERT representation. Future research may enhance detection by utilising more advanced AraBERT representations and incorporating diverse Arabic datasets and features to improve performance on human texts and AI-generated content.
 
 ---
 
