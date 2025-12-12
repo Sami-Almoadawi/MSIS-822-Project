@@ -1,5 +1,4 @@
-@@ -1,30 +1,22 @@
-# 📌 Table of Contents
+
 #  Table of Contents
 
 - [Project Summary](#Project-Summary)
@@ -18,7 +17,6 @@
 
 ---
 
-# 📌 Project Summary
 #  Project Summary
 
 This repository includes the code and tools for distinguishing between **AI-generated and human-written Arabic literature** with a hybrid approach that integrates stylistic features and deep semantic embeddings.  
@@ -26,7 +24,6 @@ The system incorporates sophisticated **Arabic preprocessing**, **sentence-trans
 
 ---
 
-# 🎯 Task Description
 #  Task Description
 
 This assignment is defined as a **binary classification problem**:
@@ -35,7 +32,6 @@ This assignment is defined as a **binary classification problem**:
 
 ---
 
-# 📊 Dataset Description
 #  Dataset Description
 
 We use a large dataset of **41,940 Arabic research abstracts**, composed of:
@@ -78,4 +74,5 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 | **Model**                     | **Accuracy** | **Precision** | **Recall** | **F1-score** |
 |------------------------------|--------------|---------------|------------|---------------|
 | Feedforward NN + BERT (768D) | 0.8617        | 0.9437          | 0.8713  | 0.9257          |
+
 
