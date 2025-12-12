@@ -2,16 +2,13 @@
 #  Table of Contents
 
 - [Project Summary](#Project-Summary)
+- [Project Objectives](#Project-Objectives)
 - [Task Description](#task-description)
+- [Project Objectives](#Project-Objectives)
 - [Dataset Description](#dataset-Description)
-- [System Architecture](#system-architecture)
 - [Methodology](#Methodology)
-- [Model Cards](#model-cards)
-- [Training](#training)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
+- [Classification Models](#MClassification-Models)
 - [Results & Analysis](#Results-&-Analysis)
-- [File Structure](#file-structure)
 - [References](#References)
 
 
@@ -21,6 +18,34 @@
 
 This repository includes the code and tools for distinguishing between **AI-generated and human-written Arabic literature** with a hybrid approach that integrates stylistic features and deep semantic embeddings.  
 The system incorporates sophisticated **Arabic preprocessing**, **sentence-transformer embeddings**, and a collection of **machine learning/deep learning classifiers** for enhanced performance.
+
+---
+
+#  Project Objectives
+
+- Build a classification model to detect AI-generated Arabic text
+- Extract linguistic and statistical features from Arabic text
+- Compare performance of different machine learning models
+- Achieve high accuracy in distinguishing between text types
+
+---
+
+#  Methodology
+
+- **Normalization:** Unicode normalization, remove non-Arabic chars, tatweel, Persian chars, hamza variants.
+- **Diacritics Removal:** Remove all tashkeel (fatha, damma, kasra, shadda, etc.).
+- **Stopwords Removal:** Filter Arabic stopwords using NLTK corpus.
+- **Stemming:** ISRI stemmer for Arabic word roots.
+
+---
+
+#  Classification Models
+
+- **Logistic Regression** - Baseline linear model
+- **Random Forest** - Ensemble of decision trees
+- **Gradient Boosting** - Iterative tree enhancement
+- **Support Vector Machine (SVM)** - Optimal hyperplane separator
+- **Neural Network** - Multi-layer deep learning model
 
 ---
 
@@ -63,6 +88,11 @@ Each entry contains:
 The dataset is **balanced**, guaranteeing consistent model performance.
 
 ---
+# Methodology
+
+---
+# Results & Analysis
+
 ##  Traditional Machine Learning Results
 
 | **Model**             | **Accuracy** | **Precision** | **Recall** | **F1-score** |
@@ -77,3 +107,16 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 | **Model**                     | **Accuracy** | **Precision** | **Recall** | **F1-score** |
 |------------------------------|--------------|---------------|------------|---------------|
 | Feedforward NN + BERT (768D) | 0.8617        | 0.9437       | 0.8713     | 0.9257        |
+
+
+---
+
+#  References
+
+Al Minshidawi, O., & Vahabie, A. H. (2025). Classifying AI-Generated Text in Low-Resource Languages like Arabic. AUT Journal of Modeling and Simulation, 57(1), 113-124.
+Almutairi, N., Alghamdi, M., & Alshammari, A. (2025). The Arabic AI fingerprint: Stylometric analysis and detection of machine‑generated text. SDAIA‑KFUPM Joint Research Center for Artificial Intelligence. KFUPM‑JRCAI. (2025). Arabic‑generated‑abstracts. Hugging Face.  
+Chen, J., Zhao, F., Sun, Y., & Yin, Y. (2020). Improved XGBoost model based on genetic algorithm. International Journal of Computer Applications in Technology, 62(3), 240. https://doi.org/10.1504/ijcat.2020.106571 
+Elfaik, H., & Nfaoui, E. H. (2020). Deep bidirectional LSTM Network Learning-Based Sentiment Analysis for Arabic text. Journal of Intelligent Systems, 30(1), 395–412. https://doi.org/10.1515/jisys-2020-0021  
+Labib, M., Ashraf, N., Aldawsari, M., & Nayel, H. (2025, November). REGLAT at AraGenEval Shared Task: Morphology-Aware AraBERT for Detecting Arabic AI-Generated Text. In Proceedings of The Third Arabic Natural Language Processing Conference: Shared Tasks (pp. 94-98). 
+Li, W., Han, J., & Pei, J. (2001, November). CMAR: Accurate and efficient classification based on multiple class-association rules. In Proceedings 2001 IEEE international conference on data mining (pp. 369-376). IEEE. 
+Salman, H. A., Kalakech, A., & Steiti, A. (2024). Random Forest algorithm Overview. Babylonian Journal of Machine Learning, 2024, 69–79. https://doi.org/10.58496/bjml/2024/007 
