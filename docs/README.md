@@ -1,4 +1,6 @@
 
+#  Detecting AI-Generated Arabic Text Using a Hybrid Approach Integrating Stylistic Features and Deep Semantic Embeddings
+
 #  Table of Contents
 
 - [Project Overview](#Project-Overview)
@@ -120,3 +122,4 @@ Elfaik, H., & Nfaoui, E. H. (2020). Deep bidirectional LSTM Network Learning-Bas
 Labib, M., Ashraf, N., Aldawsari, M., & Nayel, H. (2025, November). REGLAT at AraGenEval Shared Task: Morphology-Aware AraBERT for Detecting Arabic AI-Generated Text. In Proceedings of The Third Arabic Natural Language Processing Conference: Shared Tasks (pp. 94-98). 
 Li, W., Han, J., & Pei, J. (2001, November). CMAR: Accurate and efficient classification based on multiple class-association rules. In Proceedings 2001 IEEE international conference on data mining (pp. 369-376). IEEE. 
 Salman, H. A., Kalakech, A., & Steiti, A. (2024). Random Forest algorithm Overview. Babylonian Journal of Machine Learning, 2024, 69–79. https://doi.org/10.58496/bjml/2024/007 
+
