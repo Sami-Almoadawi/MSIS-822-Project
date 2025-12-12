@@ -13,7 +13,7 @@
 - [References](#References)
 ---
 
-#  Project Summary
+#  Project Overview
 
 This repository includes the code and tools for distinguishing between **AI-generated and human-written Arabic literature** with a hybrid approach that integrates stylistic features and deep semantic embeddings.  
 The system incorporates sophisticated **Arabic preprocessing**, **sentence-transformer embeddings**, and a collection of **machine learning/deep learning classifiers** for enhanced performance.
