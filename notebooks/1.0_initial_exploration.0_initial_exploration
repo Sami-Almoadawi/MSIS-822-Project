@@ -1,0 +1,336 @@
+# Phase 1: Project Setup & Data Acquisition
+# Task 1.3
+# Perform initial data exploration (understand the data I will be working with)
+
+# Install necessary libraries
+!pip install python-docx datasets pandas matplotlib seaborn --quiet > /dev/null 2>&1
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io
+from datasets import load_dataset
+from docx import Document
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import nsdecls
+from docx.oxml import parse_xml
+from IPython.display import display
+
+# ===== Configuration for Colors =====
+sns.set_style("whitegrid")
+custom_params = {
+    "text.color": "#003366", "axes.labelcolor": "#003366",
+    "xtick.color": "#003366", "ytick.color": "#003366",
+    "axes.titlecolor": "#003366", "font.family": "sans-serif"
+}
+plt.rcParams.update(custom_params)
+
+HUMAN_COLOR = "#884EA0"
+AI_COLOR = "#17A589"
+TOTAL_COLOR = "#5D6D7E"
+
+# ==========================================
+# Helper Functions (Word & Plotting)
+# ==========================================
+
+def set_table_borders(table):
+    """Sets simple borders for Word tables (From Phase 1 logic)"""
+    table.style = 'Table Grid'
+    for row in table.rows:
+        for i, cell in enumerate(row.cells):
+            cell.width = Inches(2.0 if i == 0 else 1.5)
+
+def add_df_to_word_simple(doc, df, title):
+    """Adds a DataFrame to Word using simple text insertion (From Phase 1 logic)"""
+    doc.add_heading(title, level=3)
+    table = doc.add_table(rows=df.shape[0] + 1, cols=df.shape[1])
+    set_table_borders(table)
+
+    # Header
+    for j, col_name in enumerate(df.columns):
+        table.cell(0, j).text = str(col_name)
+
+    # Body
+    for i, row in df.iterrows():
+        for j, value in enumerate(row):
+            table.cell(i + 1, j).text = str(value)
+    doc.add_paragraph('')
+
+def add_plot_to_word(doc, fig, width_inch=6.0):
+    """Saves plot to buffer and adds to Word"""
+    memfile = io.BytesIO()
+    fig.savefig(memfile, format='png', bbox_inches='tight', dpi=100)
+    doc.add_picture(memfile, width=Inches(width_inch))
+    memfile.close()
+    doc.add_paragraph('')
+
+def create_dist_plot(data, title, color, xlabel):
+    """Generates Histogram with KDE (From Phase 1.1 logic)"""
+    fig, ax = plt.subplots(figsize=(10, 6))
+    # Filter extreme outliers for better visualization if needed, strictly > 500
+    plot_data = [x for x in data if x < 500]
+    sns.histplot(plot_data, ax=ax, kde=True, color=color, bins=30)
+    ax.set_title(title, fontweight='bold', fontsize=14)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("Frequency")
+    plt.tight_layout()
+    return fig
+
+def display_styled_table(df, title, cmap_color):
+    """Displays dataframe in Notebook with thick black borders (From Phase 1 logic)"""
+    display(df.style.set_caption(title)
+            .background_gradient(cmap=cmap_color)
+            .set_table_styles([
+                {'selector': 'th', 'props': [('border', '3px solid black'), ('font-weight', 'bold')]},
+                {'selector': 'td', 'props': [('border', '3px solid black')]}
+            ]))
+
+# ==========================================
+# Main Execution
+# ==========================================
+
+# 1. Initialize Word Document
+doc = Document()
+title = doc.add_heading('Phase 1: Initial Data Exploration', level=1)
+title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+title.runs[0].font.color.rgb = RGBColor(0, 51, 102)
+doc.add_paragraph('Comprehensive analysis of Arabic generated abstracts dataset')
+doc.add_paragraph('')
+
+# 2. Load Dataset
+print("Loading Dataset...")
+ds = load_dataset("KFUPM-JRCAI/arabic-generated-abstracts")
+
+# 3. Overview of Splits
+by_polishing_rows = ds['by_polishing'].num_rows
+from_title_rows = ds['from_title'].num_rows
+from_title_and_content_rows = ds['from_title_and_content'].num_rows
+total_rows = by_polishing_rows + from_title_rows + from_title_and_content_rows
+
+data_splits = [
+    ["by_polishing", by_polishing_rows],
+    ["from_title", from_title_rows],
+    ["from_title_and_content", from_title_and_content_rows],
+    ["Total", total_rows],
+]
+df_splits = pd.DataFrame(data_splits, columns=["Dataset", "Number of Rows"])
+
+# Display & Add to Word
+print("\n=== 1. Dataset Splits Overview ===")
+display_styled_table(df_splits, "Number of rows in each split", "Blues")
+add_df_to_word_simple(doc, df_splits, "1. Number of Rows in Each Split")
+
+# Visualization (Rows) - FIX APPLIED HERE
+fig1, ax1 = plt.subplots(figsize=(8, 5))
+# Added hue="Dataset" and legend=False
+sns.barplot(x="Dataset", y="Number of Rows", hue="Dataset", data=df_splits[df_splits["Dataset"] != "Total"], palette="viridis", ax=ax1, legend=False)
+ax1.set_title("Number of Rows per Dataset Split", fontsize=14, weight='bold')
+plt.tight_layout()
+add_plot_to_word(doc, fig1)
+plt.close(fig1)
+
+# Global Accumulators for Phase 2 (From Phase 1.1 logic)
+all_human_lengths = []
+all_ai_lengths = []
+
+# 4. Analyze Each Split
+splits_names = ["by_polishing", "from_title", "from_title_and_content"]
+
+for split_name in splits_names:
+    print(f"\n{'='*20} ANALYZING SPLIT: {split_name} {'='*20}")
+    split_data = ds[split_name]
+    doc.add_heading(f'Split: {split_name}', level=2)
+
+    # --- [A] Structure ---
+    features = split_data.features
+    features_data = [[col, str(dtype)] for col, dtype in features.items()]
+    df_features = pd.DataFrame(features_data, columns=["Column", "Data Type"])
+
+    display_styled_table(df_features, f"Dataset Structure - {split_name}", "Blues")
+    add_df_to_word_simple(doc, df_features, "[1] Dataset Structure")
+
+    # --- [B] Dataset Info ---
+    info_data = [["Number of rows", len(split_data)], ["Number of columns", len(features)]]
+    df_info = pd.DataFrame(info_data, columns=["Property", "Value"])
+    display_styled_table(df_info, f"Dataset Info - {split_name}", "Greens")
+    add_df_to_word_simple(doc, df_info, "[2] Dataset Information")
+
+    # --- [C] Target Variable Distribution ---
+    num_human = len(split_data)
+    num_ai = len(split_data) * 4
+    total_samples = num_human + num_ai
+
+    dist_data = [
+        ["Human-written", num_human, f"{round((num_human/total_samples)*100, 2)}%"],
+        ["AI-generated", num_ai, f"{round((num_ai/total_samples)*100, 2)}%"],
+        ["Total", total_samples, "100%"]
+    ]
+    df_dist = pd.DataFrame(dist_data, columns=["Type", "Count", "Percentage"])
+
+    display_styled_table(df_dist, f"Target Distribution - {split_name}", "Oranges")
+    add_df_to_word_simple(doc, df_dist, "[3] Target Variable Distribution")
+
+    # --- [D] Data Quality Metrics (From Phase 1 Logic) ---
+    doc.add_heading('[4] Data Quality Assessment', level=3)
+
+    # D.1 Missing Values
+    null_counts = []
+    for col in features.keys():
+        values = split_data[col]
+        # Count logic from Phase 1: Null OR Empty String
+        null_count = sum(1 for v in values if v is None or (isinstance(v, str) and v.strip() == ""))
+        null_counts.append([col, null_count])
+
+    df_nulls = pd.DataFrame(null_counts, columns=["Column", "Null/Empty Count"])
+    display_styled_table(df_nulls, f"Missing Values - {split_name}", "Reds")
+    add_df_to_word_simple(doc, df_nulls, "Missing Values")
+
+    # D.2 Duplicates
+    dup_counts = []
+    for col in features.keys():
+        values = split_data[col]
+        try:
+            dup_count = len(values) - len(set(values))
+        except:
+            dup_count = 0
+        dup_counts.append([col, dup_count])
+
+    df_dups = pd.DataFrame(dup_counts, columns=["Column", "Duplicate Count"])
+    display_styled_table(df_dups, f"Duplicates - {split_name}", "Purples")
+    add_df_to_word_simple(doc, df_dups, "Duplicates")
+
+    # Plot Duplicates (if any) - FIX APPLIED HERE
+    if df_dups["Duplicate Count"].sum() > 0:
+        fig_dup, ax_dup = plt.subplots(figsize=(10, 6))
+        # Added hue="Column" and legend=False
+        sns.barplot(x="Column", y="Duplicate Count", hue="Column", data=df_dups, palette="Purples", ax=ax_dup, legend=False)
+        ax_dup.set_title(f"Duplicates - {split_name}", fontsize=14, weight='bold')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        add_plot_to_word(doc, fig_dup)
+        plt.close(fig_dup)
+
+    # D.3 Inconsistencies (Detailed Table)
+    inconsistencies = []
+    for col in features.keys():
+        values = split_data[col]
+        empty_str_count = sum(1 for v in values if isinstance(v, str) and v.strip() == "")
+        null_val_count = sum(1 for v in values if v is None)
+        inconsistencies.append([col, null_val_count, empty_str_count])
+
+    df_quality_detail = pd.DataFrame(inconsistencies, columns=["Column", "Null Values (NaN)", "Empty Strings ('')"])
+    display_styled_table(df_quality_detail, f"Inconsistencies - {split_name}", "Reds")
+    add_df_to_word_simple(doc, df_quality_detail, "Detailed Inconsistencies")
+
+    # --- [E] Statistical Summary & Distributions (From Phase 1.1 Logic) ---
+    doc.add_heading('[5] Statistical Summary of Text Lengths', level=3)
+
+    # Extract Lengths
+    human_texts = split_data['original_abstract']
+    ai_cols = [c for c in features.keys() if 'generated' in c]
+    ai_texts = []
+    for col in ai_cols:
+        ai_texts.extend(split_data[col])
+
+    # Clean lengths (remove likely outliers > 500 for valid analysis)
+    human_lens_raw = [len(str(t).split()) for t in human_texts if t]
+    ai_lens_raw = [len(str(t).split()) for t in ai_texts if t]
+
+    human_lens = [l for l in human_lens_raw if l <= 500]
+    ai_lens = [l for l in ai_lens_raw if l <= 500]
+
+    # Store for global
+    all_human_lengths.extend(human_lens)
+    all_ai_lengths.extend(ai_lens)
+
+    # Calculate Stats
+    def get_metrics(data, label):
+        if not data: return [label, 0, 0, 0]
+        return [label, round(np.mean(data), 2), np.min(data), np.max(data)]
+
+    combined_lens = human_lens + ai_lens
+    row_human = get_metrics(human_lens, "Human-Written")
+    row_ai = get_metrics(ai_lens, "AI-Generated")
+    row_total = get_metrics(combined_lens, "Total (Combined)")
+
+    df_stats = pd.DataFrame([row_human, row_ai, row_total], columns=["Type", "Avg Length", "Min Length", "Max Length"])
+
+    display_styled_table(df_stats, f"Stats - {split_name}", "Blues")
+    add_df_to_word_simple(doc, df_stats, "Text Length Statistics")
+
+    # Plot Stats Bar Chart
+    df_melted = df_stats.melt(id_vars="Type", var_name="Metric", value_name="Value")
+    fig_stat, ax_stat = plt.subplots(figsize=(10, 5))
+    sns.barplot(data=df_melted, x="Metric", y="Value", hue="Type",
+                palette={"Human-Written": HUMAN_COLOR, "AI-Generated": AI_COLOR, "Total (Combined)": TOTAL_COLOR},
+                ax=ax_stat)
+    ax_stat.set_title(f"Stats Comparison - {split_name}", weight='bold')
+    for c in ax_stat.containers: ax_stat.bar_label(c, fmt='%.0f')
+    add_plot_to_word(doc, fig_stat)
+    plt.close(fig_stat)
+
+    # Plot Distributions
+    doc.add_heading('[6] Detailed Distribution Analysis', level=3)
+
+    doc.add_paragraph("Human-Written Distribution:")
+    fig_h = create_dist_plot(human_lens, f"Human Dist: {split_name}", HUMAN_COLOR, "Word Count")
+    add_plot_to_word(doc, fig_h)
+    plt.show() # Show in notebook
+    plt.close(fig_h)
+
+    doc.add_paragraph("AI-Generated Distribution:")
+    fig_a = create_dist_plot(ai_lens, f"AI Dist: {split_name}", AI_COLOR, "Word Count")
+    add_plot_to_word(doc, fig_a)
+    plt.show() # Show in notebook
+    plt.close(fig_a)
+
+    doc.add_page_break()
+
+# ==========================================
+# Phase 2: Aggregate Analysis (Combined)
+# ==========================================
+print(f"\n{'='*20} AGGREGATE ANALYSIS {'='*20}")
+doc.add_heading("Phase 2: Aggregate Analysis (All Splits Combined)", level=1)
+
+# 1. Aggregate Stats
+combined_all = all_human_lengths + all_ai_lengths
+row_h_all = get_metrics(all_human_lengths, "Human-Written")
+row_a_all = get_metrics(all_ai_lengths, "AI-Generated")
+row_t_all = get_metrics(combined_all, "Total (Combined)")
+
+df_global_stats = pd.DataFrame([row_h_all, row_a_all, row_t_all], columns=["Type", "Avg Length", "Min Length", "Max Length"])
+
+display_styled_table(df_global_stats, "Global Statistics Summary", "Greens")
+add_df_to_word_simple(doc, df_global_stats, "A. Global Statistics Summary")
+
+# 2. Aggregate Chart
+df_global_melt = df_global_stats.melt(id_vars="Type", var_name="Metric", value_name="Value")
+fig_g, ax_g = plt.subplots(figsize=(10, 5))
+sns.barplot(data=df_global_melt, x="Metric", y="Value", hue="Type",
+            palette={"Human-Written": HUMAN_COLOR, "AI-Generated": AI_COLOR, "Total (Combined)": TOTAL_COLOR},
+            ax=ax_g)
+ax_g.set_title("Global Statistics Comparison", weight='bold')
+for c in ax_g.containers: ax_g.bar_label(c, fmt='%.0f')
+add_plot_to_word(doc, fig_g)
+plt.close(fig_g)
+
+# 3. Aggregate Distributions
+doc.add_heading("B. Global Distributions", level=2)
+
+doc.add_paragraph("Global Human Distribution:")
+fig_gh = create_dist_plot(all_human_lengths, "Global Human Distribution", HUMAN_COLOR, "Word Count")
+add_plot_to_word(doc, fig_gh)
+plt.close(fig_gh)
+
+doc.add_paragraph("Global AI Distribution:")
+fig_ga = create_dist_plot(all_ai_lengths, "Global AI Distribution", AI_COLOR, "Word Count")
+add_plot_to_word(doc, fig_ga)
+plt.close(fig_ga)
+
+# Save Final Report
+output_path = 'Phase1_Dataset_Report.docx'
+doc.save(output_path)
+print(f"\n✅ Final Report Generated: {output_path}")
+
