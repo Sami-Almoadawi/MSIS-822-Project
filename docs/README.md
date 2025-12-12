@@ -88,9 +88,6 @@ Each entry contains:
 The dataset is **balanced**, guaranteeing consistent model performance.
 
 ---
-# Methodology
-
----
 # Results & Analysis
 
 ##  Traditional Machine Learning Results
