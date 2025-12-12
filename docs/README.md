@@ -110,6 +110,7 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 - **Random Forest** - Ensemble of decision trees
 - **Gradient Boosting** - Iterative tree enhancement
 - **Support Vector Machine (SVM)** - Optimal hyperplane separator
+- **Naive Bayes** - Simple probabilistic classifier that assumes that features are conditionally independent.
 - **Neural Network** - Multi-layer deep learning model
 
 ---
