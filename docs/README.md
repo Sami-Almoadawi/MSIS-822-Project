@@ -1,0 +1,25 @@
+name: arabic_text_classification
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pandas
+  - numpy
+  - matplotlib
+  - seaborn
+  - scikit-learn
+  - nltk
+  - openpyxl
+  - xlsxwriter
+  - tqdm
+  - pip:
+    - xgboost
+    - transformers
+    - torch
+    - tensorflow
+    - datasets
+    - python-docx
+    - wordcloud
+    - tabulate
+    - weasyprint
