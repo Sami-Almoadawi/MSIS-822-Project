@@ -23,10 +23,10 @@ The system incorporates sophisticated **Arabic preprocessing**, **sentence-trans
 ---
 #  Project Objectives
 
-- Build a classification model to detect AI-generated Arabic text
-- Extract linguistic and statistical features from Arabic text
-- Compare performance of different machine learning models
-- Achieve high accuracy in distinguishing between text types
+- Build a classification model to detect AI-generated Arabic text.
+- Extract linguistic and statistical features from Arabic text.
+- Compare performance of different machine learning models.
+- Achieve high accuracy in distinguishing between text types.
 
 ---
 # Project Structure
@@ -106,12 +106,12 @@ The dataset is **balanced**, guaranteeing consistent model performance.
 
 #  Classification Models
 
-- **Logistic Regression** - Baseline linear model
-- **Random Forest** - Ensemble of decision trees
-- **Gradient Boosting** - Iterative tree enhancement
-- **Support Vector Machine (SVM)** - Optimal hyperplane separator
+- **Logistic Regression** - Baseline linear model.
+- **Random Forest** - Ensemble of decision trees.
+- **Gradient Boosting** - Iterative tree enhancement.
+- **Support Vector Machine (SVM)** - Optimal hyperplane separator.
 - **Naive Bayes** - Simple probabilistic classifier that assumes that features are conditionally independent.
-- **Neural Network** - Multi-layer deep learning model
+- **Neural Network** - Multi-layer deep learning model.
 
 ---
 
