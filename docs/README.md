@@ -1,40 +1,80 @@
 
-#  Detecting AI-Generated Arabic Text Using a Hybrid Approach Integrating Stylistic Features and Deep Semantic Embeddings
+> **Project Title:** Detection of AI-Generated Arabic Text Using a Hybrid Approach Integrating Stylistic Features and Deep Semantic Embeddings
+> **Student:** Sami Ruzeq M. Almoadawi (ID: 4714252)
+> **Institution:** Master of Science in Big Data Analytics, Taibah University 
+> **Course:** MSIS822: Data Analytic Techniques   
+> **Instructor:** Dr. Mohammed Al-sarem
 
-#  Table of Contents
+
+## 📋 Table of Contents
 
 - [Project Overview](#Project-Overview)
 - [Project Objectives](#Project-Objectives)
 - [Project Structure](#Project-Structure)
+- [Installation & Usage](#-installation--usage)
 - [Task Description](#task-description)
 - [Dataset Description](#dataset-Description)
 - [Methodology](#Methodology)
-- [Classification Models](#MClassification-Models)
 - [Results & Analysis](#Results-&-Analysis)
 - [Conclusion & Future Work](#Conclusion-&-Future-Work)
 - [References](#References)
----
 
-#  Project Overview
+---
+## 📖 Project Overview
 
 This repository includes the code and tools for distinguishing between **AI-generated and human-written Arabic literature** with a hybrid approach that integrates stylistic features and deep semantic embeddings.  
 The system incorporates sophisticated **Arabic preprocessing**, **sentence-transformer embeddings**, and a collection of **machine learning/deep learning classifiers** for enhanced performance.
 
 ---
-#  Project Objectives
+## 🎯 Project Objectives
 
-- Build a classification model to detect AI-generated Arabic text.
-- Extract linguistic and statistical features from Arabic text.
-- Compare performance of different machine learning models.
-- Achieve high accuracy in distinguishing between text types.
+- Build a robust binary classification model to detect AI-generated Arabic text.
+- Extract linguistic, statistical, and stylometric features specific to the Arabic language.
+- Leverage **AraBERT** for extracting semantic embeddings.
+- Compare the performance of traditional Machine Learning models (RF, SVM, XGBoost) vs. Deep Learning approaches.
 
 ---
-# Project Structure
-The code is divided into 4 Phases based on the original script:
-1. **Phase 1:** Data Acquisition & Initial Exploration (Stats, Visuals).
-2. **Phase 2:** Data Preprocessing (Normalization, Stemming) & EDA.
-3. **Phase 3:** Feature Engineering (Stylometric features 6, 29, 52, 75 + BERT L2-Norm).
-4. **Phase 4:** Modeling (ML Classifiers + Neural Network) & Evaluation.
+## 📂 Project Structure
+
+The repository is organized as follows:
+
+AI_Text_Detection_Project
+├── data/                      # Data directory
+│   ├── external/              # External resources and datasets
+│   ├── raw/                   # Original immutable data
+│   └── processed/             # Cleaned and preprocessed data
+├── docs/                      # Project documentation & Final Reports
+│   ├── Final_Report.pdf       # The final project report (PDF)
+│   ├── Final_Report.docx      # The final project report (Word)
+│   └── README.md              # Project overview
+├── models/                    # Saved trained models (.pkl files)
+├── notebooks/                 # Jupyter notebooks for experimentation
+├── reports/                   # Generated analysis and reports
+│   ├── figures/               # Generated plots (ROC, Confusion Matrix)
+│   └── Final_Report.docx      # The final project report
+├── src/                       # Source code for the pipeline
+│   ├── modeling.py            # Model training logic
+│   ├── preprocessing.py       # Cleaning and preparation
+│   ├── feature_extraction.py  # Feature engineering
+│   └── utils.py               # Helper functions
+├── main.py                    # Main execution script
+├── requirements.txt           # Project dependencies
+├── environment.yml            # Conda environment file
+└── .gitignore                 # Git ignore file
+
+---
+
+## 🚀 Installation & Usage
+
+1. Clone the Repository
+git clone <repository_url>
+cd <repository_folder>
+2. Install Dependencies
+Ensure you have Python 3.8+ installed. Then run:
+pip install -r requirements.txt
+3. Run the Pipeline
+Execute the main script to start data loading, processing, training, and evaluation:
+python main.py
 
 ---
 #  Task Description
@@ -46,87 +86,94 @@ The assignment is defined as a binary classification problem:
 
  Each Arabic abstract is processed, encoded into embeddings, then categorised utilising one of many trained models.
  The research tackles the increasing difficulty of automatically detecting created Arabic academic literature.
+ The code is divided into 4 Phases based on the original script:
+1. **Phase 1:** Data Acquisition & Initial Exploration (Stats, Visuals).
+2. **Phase 2:** Data Preprocessing (Normalization, Stemming) & EDA.
+3. **Phase 3:** Feature Engineering (Stylometric features 6, 29, 52, 75 + BERT L2-Norm).
+4. **Phase 4:** Modeling (ML Classifiers + Neural Network) & Evaluation.
 
 ---
 
-#  Dataset Description
+#  📊 Dataset Description
 
-We use a large dataset of **41,940 Arabic research abstracts**, composed of:
+We utilize the **KFUPM-JRCAI/arabic-generated-abstracts** dataset, consisting of **41,940 Arabic research abstracts**.
 
 - **original_abstract**: The original human-written Arabic abstract
 - **{model}_generated_abstract** Machine-generated version from each model
 
 ### Dataset Statistics
 
-| Subset | Count | Ratio |
-|-------|--------|--------|
-| Training | 29,358 | 70% |
-| Validation | 6,291 | 15% |
-| Testing | 6,291 | 15% |
-| Total Samples | 41,940 | 100% |
-| Classes | 0 (AI), 1 (Human) | 2
+Subset,Count,Ratio
+**Training**,"29,358",70%
+**Validation**,"6,291",15%
+**Testing**,"6,291",15%
+**Total**,"41,940",100%
 
-Each entry contains:
+**Classes:** 0 (AI-Generated), 1 (Human-Authored).
 
-- `abstract_text`  
-- `generated_by`  
-- `source_split`  
-- `label`  
-
-The dataset is **balanced**, guaranteeing consistent model performance.
 
 ---
-# Results & Analysis
+
+#  ⚙️ Methodology
+The pipeline consists of four main phases:
+
+1. **Data Preprocessing:**
+
+   - **Normalization:** Unicode normalization, remove non-Arabic chars, tanween, Persian chars, hamza variants, and alif maqsura.
+   - **Diacritics Removal:** Remove all tashkeel (fatha, damma, kasra, shadda, etc.).
+   - **Stopwords Removal:** Filter Arabic stopwords using NLTK corpus.
+   - **Stemming:** ISRI stemmer for Arabic word roots.
+
+2. **Feature Engineering:**
+
+   - **Stylometric Features:** Specific indices (6, 29, 52, 75) based on project assignment.
+
+   - **Semantic Embeddings:** Using bert-base-arabertv02 to extract sentence-level embeddings (CLS token).
+
+3. **Modeling:**
+
+   - **Training ML classifiers:** Logistic Regression, Random Forest, SVM, XGBoost.
+
+   - **Deep Learning:** Neural Network with Keras.
+
+4. **Evaluation:**
+
+   - **Metrics:** Accuracy, Precision, Recall, F1-Score.
+
+   - **Visualization:** Confusion Matrices and ROC Curves.
+---
+
+# 📈 Results & Analysis
 
 ##  Traditional Machine Learning Results
 
-| **Model**             | **Accuracy** | **Precision** | **Recall** | **F1-score** |
-|----------------------|--------------|---------------|------------|---------------|
-| Random Forest        | **0.978**    | **0.98**      | **0.98**   | **0.98**      |
-| Logistic Regression  | 0.962        | 0.96          | 0.96       | 0.96          |
-| SVM                  | 0.975        | 0.98          | 0.98       | 0.98          |
-| XGBoost              | 0.969        | 0.97          | 0.95       | 0.97          |
+Model,Accuracy,Precision,Recall,F1-Score
+Random Forest,0.978,0.98,0.98,0.98
+SVM,0.975,0.98,0.98,0.98
+XGBoost,0.969,0.97,0.95,0.97
+Logistic Regression,0.962,0.96,0.96,0.96
 
 ##  Deep Learning Results
 
-| **Model**                     | **Accuracy** | **Precision** | **Recall** | **F1-score** |
-|------------------------------|--------------|---------------|------------|---------------|
-| Feedforward NN + BERT (768D) | 0.8617        | 0.9437       | 0.8713     | 0.9257        |
+Model,Accuracy,Precision,Recall,F1-Score
+Feedforward NN,0.862,0.94,0.87,0.93
+
+Key Finding: The Random Forest classifier outperformed other models, achieving the highest balance between precision and recall.
 
 ---
 
-#  Methodology
+#  🔚 Conclusion & Future Work
 
-- **Normalization:** Unicode normalization, remove non-Arabic chars, tatweel, Persian chars, hamza variants.
-- **Diacritics Removal:** Remove all tashkeel (fatha, damma, kasra, shadda, etc.).
-- **Stopwords Removal:** Filter Arabic stopwords using NLTK corpus.
-- **Stemming:** ISRI stemmer for Arabic word roots.
-
----
-
-#  Classification Models
-
-- **Logistic Regression** - Baseline linear model.
-- **Random Forest** - Ensemble of decision trees.
-- **Gradient Boosting** - Iterative tree enhancement.
-- **Support Vector Machine (SVM)** - Optimal hyperplane separator.
-- **Naive Bayes** - Simple probabilistic classifier that assumes that features are conditionally independent.
-- **Neural Network** - Multi-layer deep learning model.
-
----
-
-#  Conclusion & Future Work
 This project explored AI-generated Arabic research abstract detection using a hybrid approach combining stylometric features and a BERT CLS scalar. Evaluated on the KFUPM-JRCAI corpus, various classifiers were tested, with **Random Forest** performing best in balancing recall and overall accuracy. Results indicate that integrating simple semantic signals from BERT can effectively aid Arabic AI-text detection. However, limitations include reliance on a single dataset and a basic BERT representation. Future research may enhance detection by utilising more advanced AraBERT representations and incorporating diverse Arabic datasets and features to improve performance on human texts and AI-generated content.
 
 ---
 
-#  References
+#  📚 References
 
-Al Minshidawi, O., & Vahabie, A. H. (2025). Classifying AI-Generated Text in Low-Resource Languages like Arabic. AUT Journal of Modeling and Simulation, 57(1), 113-124.
-Almutairi, N., Alghamdi, M., & Alshammari, A. (2025). The Arabic AI fingerprint: Stylometric analysis and detection of machine‑generated text. SDAIA‑KFUPM Joint Research Center for Artificial Intelligence. KFUPM‑JRCAI. (2025). Arabic‑generated‑abstracts. Hugging Face.  
-Chen, J., Zhao, F., Sun, Y., & Yin, Y. (2020). Improved XGBoost model based on genetic algorithm. International Journal of Computer Applications in Technology, 62(3), 240. https://doi.org/10.1504/ijcat.2020.106571 
-Elfaik, H., & Nfaoui, E. H. (2020). Deep bidirectional LSTM Network Learning-Based Sentiment Analysis for Arabic text. Journal of Intelligent Systems, 30(1), 395–412. https://doi.org/10.1515/jisys-2020-0021  
-Labib, M., Ashraf, N., Aldawsari, M., & Nayel, H. (2025, November). REGLAT at AraGenEval Shared Task: Morphology-Aware AraBERT for Detecting Arabic AI-Generated Text. In Proceedings of The Third Arabic Natural Language Processing Conference: Shared Tasks (pp. 94-98). 
-Li, W., Han, J., & Pei, J. (2001, November). CMAR: Accurate and efficient classification based on multiple class-association rules. In Proceedings 2001 IEEE international conference on data mining (pp. 369-376). IEEE. 
-Salman, H. A., Kalakech, A., & Steiti, A. (2024). Random Forest algorithm Overview. Babylonian Journal of Machine Learning, 2024, 69–79. https://doi.org/10.58496/bjml/2024/007 
-
+1. Al Minshidawi, O., & Vahabie, A. H. (2025). Classifying AI-Generated Text in Low-Resource Languages like Arabic. AUT Journal of Modeling and Simulation, 57(1), 113-124.
+2. Almutairi, N., Alghamdi, M., & Alshammari, A. (2025). The Arabic AI fingerprint: Stylometric analysis and detection of machine‑generated text. SDAIA‑KFUPM Joint Research Center for Artificial Intelligence. KFUPM‑JRCAI. (2025). Arabic‑generated‑abstracts. Hugging Face.  
+3. Chen, J., Zhao, F., Sun, Y., & Yin, Y. (2020). Improved XGBoost model based on genetic algorithm. International Journal of Computer Applications in Technology, 62(3), 240. https://doi.org/10.1504/ijcat.2020.106571 
+4. Elfaik, H., & Nfaoui, E. H. (2020). Deep bidirectional LSTM Network Learning-Based Sentiment Analysis for Arabic text. Journal of Intelligent Systems, 30(1), 395–412. https://doi.org/10.1515/jisys-2020-0021  
+5. Labib, M., Ashraf, N., Aldawsari, M., & Nayel, H. (2025, November). REGLAT at AraGenEval Shared Task: Morphology-Aware AraBERT for Detecting Arabic AI-Generated Text. In Proceedings of The Third Arabic Natural Language Processing Conference: Shared Tasks (pp. 94-98). 
+6. Li, W., Han, J., & Pei, J. (2001, November). CMAR: Accurate and efficient classification based on multiple class-association rules. In Proceedings 2001 IEEE international conference on data mining (pp. 369-376). IEEE. 
+7. Salman, H. A., Kalakech, A., & Steiti, A. (2024). Random Forest algorithm Overview. Babylonian Journal of Machine Learning, 2024, 69–79. https://doi.org/10.58496/bjml/2024/007
