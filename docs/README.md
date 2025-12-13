@@ -38,8 +38,6 @@ The system incorporates sophisticated **Arabic preprocessing**, **sentence-trans
 ## 📂 Project Structure
 
 The repository is organized as follows:
-
-
 AI_Text_Detection_Project/
 ├── data/
 │ ├── external/ # External resources and datasets
@@ -63,7 +61,7 @@ AI_Text_Detection_Project/
 ├── requirements.txt # Project dependencies
 ├── environment.yml # Conda environment file
 └── .gitignore # Git ignore file
-
+undefined
 
 ---
 
