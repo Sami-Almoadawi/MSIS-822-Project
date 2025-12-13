@@ -1,9 +1,10 @@
 
-> **Project Title:** Detection of AI-Generated Arabic Text Using a Hybrid Approach Integrating Stylistic Features and Deep Semantic Embeddings
-> **Student:** Sami Ruzeq M. Almoadawi (ID: 4714252)
-> **Institution:** Master of Science in Big Data Analytics, Taibah University 
-> **Course:** MSIS822: Data Analytic Techniques   
-> **Instructor:** Dr. Mohammed Al-sarem
+# Detection of AI-Generated Arabic Text Using a Hybrid Approach Integrating Stylistic Features and Deep Semantic Embeddings
+
+**Student:** Sami Ruzeq M. Almoadawi (ID: 4714252)  
+**Institution:** Master of Science in Big Data Analytics, Taibah University  
+**Course:** MSIS822: Data Analytic Techniques  
+**Instructor:** Dr. Mohammed Al-sarem  
 
 
 ## 📋 Table of Contents
@@ -41,27 +42,27 @@ The repository is organized as follows:
 
 AI_Text_Detection_Project/
 ├── data/
-│   ├── external/              # External resources and datasets
-│   ├── raw/                   # Original immutable data
-│   └── processed/             # Cleaned and preprocessed data
+│ ├── external/ # External resources and datasets
+│ ├── raw/ # Original immutable data
+│ └── processed/ # Cleaned and preprocessed data
 ├── docs/
-│   ├── Final_Report.pdf       # The final project report (PDF)
-│   ├── Final_Report.docx      # The final project report (Word)
-│   └── README.md              # Project overview
-├── models/                    # Saved trained models (.pkl files)
-├── notebooks/                 # Jupyter notebooks for experimentation
+│ ├── Final_Report.pdf # Final project report (PDF)
+│ ├── Final_Report.docx # Final project report (Word)
+│ └── README.md # Project overview
+├── models/ # Saved trained models (.pkl files)
+├── notebooks/ # Jupyter notebooks for experimentation
 ├── reports/
-│   ├── figures/               # Generated plots (ROC, Confusion Matrix)
-│   └── Final_Report.docx      # The final project report
+│ ├── figures/ # Generated plots (ROC, Confusion Matrix)
+│ └── Final_Report.docx # Final project report
 ├── src/
-│   ├── modeling.py            # Model training logic
-│   ├── preprocessing.py       # Cleaning and preparation
-│   ├── feature_extraction.py  # Feature engineering
-│   └── utils.py               # Helper functions
-├── main.py                    # Main execution script
-├── requirements.txt           # Project dependencies
-├── environment.yml            # Conda environment file
-└── .gitignore                 # Git ignore file
+│ ├── modeling.py # Model training logic
+│ ├── preprocessing.py # Cleaning and preparation
+│ ├── feature_extraction.py # Feature engineering
+│ └── utils.py # Helper functions
+├── main.py # Main execution script
+├── requirements.txt # Project dependencies
+├── environment.yml # Conda environment file
+└── .gitignore # Git ignore file
 
 
 ---
@@ -105,11 +106,12 @@ We utilize the **KFUPM-JRCAI/arabic-generated-abstracts** dataset, consisting of
 
 ### Dataset Statistics
 
-Subset,Count,Ratio
-**Training**,"29,358",70%
-**Validation**,"6,291",15%
-**Testing**,"6,291",15%
-**Total**,"41,940",100%
+| Subset     | Count   | Ratio |
+|-----------|--------:|:-----:|
+| **Training**  | 29,358  | 70%   |
+| **Validation**| 6,291   | 15%   |
+| **Testing**   | 6,291   | 15%   |
+| **Total** | 41,940  | 100%  |
 
 **Classes:** 0 (AI-Generated), 1 (Human-Authored).
 
@@ -149,18 +151,20 @@ The pipeline consists of four main phases:
 
 ##  Traditional Machine Learning Results
 
-Model,Accuracy,Precision,Recall,F1-Score
-Random Forest,0.978,0.98,0.98,0.98
-SVM,0.975,0.98,0.98,0.98
-XGBoost,0.969,0.97,0.95,0.97
-Logistic Regression,0.962,0.96,0.96,0.96
+| Model              | Accuracy | Precision | Recall | F1-Score |
+|--------------------|:--------:|:---------:|:------:|:--------:|
+| **Random Forest**      | **0.978**    | **0.98**      | **0.98**   | **0.98** |
+| SVM                | 0.975    | 0.98      | 0.98   | 0.98     |
+| XGBoost            | 0.969    | 0.97      | 0.95   | 0.97     |
+| Logistic Regression| 0.962    | 0.96      | 0.96   | 0.96     |
 
 ##  Deep Learning Results
 
-Model,Accuracy,Precision,Recall,F1-Score
-Feedforward NN,0.862,0.94,0.87,0.93
+| Model           | Accuracy | Precision | Recall | F1-Score |
+|-----------------|:--------:|:---------:|:------:|:--------:|
+| Feedforward NN  | 0.862    | 0.94      | 0.87   | 0.93     |
 
-Key Finding: The Random Forest classifier outperformed other models, achieving the highest balance between precision and recall.
+- **Key Finding:** The Random Forest classifier outperformed other models, achieving the highest balance between precision and recall.
 
 ---
 
@@ -179,3 +183,4 @@ This project explored AI-generated Arabic research abstract detection using a hy
 5. Labib, M., Ashraf, N., Aldawsari, M., & Nayel, H. (2025, November). REGLAT at AraGenEval Shared Task: Morphology-Aware AraBERT for Detecting Arabic AI-Generated Text. In Proceedings of The Third Arabic Natural Language Processing Conference: Shared Tasks (pp. 94-98). 
 6. Li, W., Han, J., & Pei, J. (2001, November). CMAR: Accurate and efficient classification based on multiple class-association rules. In Proceedings 2001 IEEE international conference on data mining (pp. 369-376). IEEE. 
 7. Salman, H. A., Kalakech, A., & Steiti, A. (2024). Random Forest algorithm Overview. Babylonian Journal of Machine Learning, 2024, 69–79. https://doi.org/10.58496/bjml/2024/007
+
