@@ -40,33 +40,21 @@ The system incorporates sophisticated **Arabic preprocessing**, **sentence-trans
 
 The repository is organized as follows:
 
- ```text
-
-AI_Text_Detection_Project/
-├── data/
-│   ├── external/             # External resources and datasets
-│   ├── raw/                  # Original immutable data
-│   └── processed/            # Cleaned and preprocessed data
-├── docs/
-│   ├── Final_Report.pdf      # Final project report (PDF)
-│   ├── Final_Report.docx     # Final project report (Word)
-│   └── README.md             # Project overview
-├── models/                   # Saved trained models (.pkl files)
-├── notebooks/                # Jupyter notebooks for experimentation
-├── reports/
-│   ├── figures/              # Generated plots (ROC, Confusion Matrix)
-│   └── Final_Report.docx     # Final project report
-├── src/
-│   ├── modeling.py           # Model training logic
-│   ├── preprocessing.py      # Cleaning and preparation
-│   ├── feature_extraction.py # Feature engineering
-│   └── utils.py              # Helper functions
-├── main.py                   # Main execution script
-├── requirements.txt          # Project dependencies
-├── environment.yml           # Conda environment file
-└── .gitignore                # Git ignore file
-
-```
+| Folder/File          | Description                                   |
+|----------------------|-----------------------------------------------|
+| `data/`              | External, raw, and processed datasets         |
+| `docs/`              | Final report and documentation                |
+| `models/`            | Saved trained models (`.pkl`)                 |
+| `notebooks/`         | Jupyter notebooks for experimentation         |
+| `reports/figures/`   | ROC curves, confusion matrices, plots         |
+| `src/modeling.py`    | Model training logic                          |
+| `src/preprocessing.py`| Cleaning and preparation                     |
+| `src/feature_extraction.py` | Feature engineering                    |
+| `src/utils.py`       | Helper functions                              |
+| `main.py`            | Main execution script                         |
+| `requirements.txt`   | Project dependencies                          |
+| `environment.yml`    | Conda environment definition                  |
+| `.gitignore`         | Git ignore rules                              |
 
 ---
 
@@ -186,6 +174,7 @@ This project explored AI-generated Arabic research abstract detection using a hy
 5. Labib, M., Ashraf, N., Aldawsari, M., & Nayel, H. (2025, November). REGLAT at AraGenEval Shared Task: Morphology-Aware AraBERT for Detecting Arabic AI-Generated Text. In Proceedings of The Third Arabic Natural Language Processing Conference: Shared Tasks (pp. 94-98). 
 6. Li, W., Han, J., & Pei, J. (2001, November). CMAR: Accurate and efficient classification based on multiple class-association rules. In Proceedings 2001 IEEE international conference on data mining (pp. 369-376). IEEE. 
 7. Salman, H. A., Kalakech, A., & Steiti, A. (2024). Random Forest algorithm Overview. Babylonian Journal of Machine Learning, 2024, 69–79. https://doi.org/10.58496/bjml/2024/007
+
 
 
 
