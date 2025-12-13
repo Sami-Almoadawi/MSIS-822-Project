@@ -55,7 +55,7 @@ AI_Text_Detection_Project/
 ├── notebooks/                # Jupyter notebooks for experimentation
 ├── reports/
 │   ├── figures/              # Generated plots (ROC, Confusion Matrix)
-│   └── Final_Report.docx     # Final project report
+│   └── Final_Presentations.ppt     # Final project presentations
 ├── src/
 │   ├── modeling.py           # Model training logic
 │   ├── preprocessing.py      # Cleaning and preparation
