@@ -35,32 +35,36 @@ The system incorporates sophisticated **Arabic preprocessing**, **sentence-trans
 - Compare the performance of traditional Machine Learning models (RF, SVM, XGBoost) vs. Deep Learning approaches.
 
 ---
+
 ## 📂 Project Structure
 
 The repository is organized as follows:
+
+``text
+
 AI_Text_Detection_Project/
 ├── data/
-│ ├── external/ # External resources and datasets
-│ ├── raw/ # Original immutable data
-│ └── processed/ # Cleaned and preprocessed data
+│   ├── external/             # External resources and datasets
+│   ├── raw/                  # Original immutable data
+│   └── processed/            # Cleaned and preprocessed data
 ├── docs/
-│ ├── Final_Report.pdf # Final project report (PDF)
-│ ├── Final_Report.docx # Final project report (Word)
-│ └── README.md # Project overview
-├── models/ # Saved trained models (.pkl files)
-├── notebooks/ # Jupyter notebooks for experimentation
+│   ├── Final_Report.pdf      # Final project report (PDF)
+│   ├── Final_Report.docx     # Final project report (Word)
+│   └── README.md             # Project overview
+├── models/                   # Saved trained models (.pkl files)
+├── notebooks/                # Jupyter notebooks for experimentation
 ├── reports/
-│ ├── figures/ # Generated plots (ROC, Confusion Matrix)
-│ └── Final_Report.docx # Final project report
+│   ├── figures/              # Generated plots (ROC, Confusion Matrix)
+│   └── Final_Report.docx     # Final project report
 ├── src/
-│ ├── modeling.py # Model training logic
-│ ├── preprocessing.py # Cleaning and preparation
-│ ├── feature_extraction.py # Feature engineering
-│ └── utils.py # Helper functions
-├── main.py # Main execution script
-├── requirements.txt # Project dependencies
-├── environment.yml # Conda environment file
-└── .gitignore # Git ignore file
+│   ├── modeling.py           # Model training logic
+│   ├── preprocessing.py      # Cleaning and preparation
+│   ├── feature_extraction.py # Feature engineering
+│   └── utils.py              # Helper functions
+├── main.py                   # Main execution script
+├── requirements.txt          # Project dependencies
+├── environment.yml           # Conda environment file
+└── .gitignore                # Git ignore file
 
 ---
 
