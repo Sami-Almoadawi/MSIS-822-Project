@@ -61,7 +61,6 @@ AI_Text_Detection_Project/
 ├── requirements.txt # Project dependencies
 ├── environment.yml # Conda environment file
 └── .gitignore # Git ignore file
-undefined
 
 ---
 
