@@ -2,21 +2,20 @@
 # PHASE 4: MACHINE LEARNING CLASSIFICATION MODELS
 # =================================================================================================
 
-# 1. INSTALL LIBRARIES
-print(" ⏳  Installing libraries...")
-!pip install scikit-learn xgboost transformers torch tensorflow python-docx seaborn matplotlib xlsxwriter --quiet > /dev/null 2>&1
 
-# 2. IMPORTS
+# IMPORTS
+
 import os
-import joblib
-from tensorflow.keras.models import Sequential, Model as KerasModel
-import re
+import zipfile
 import warnings
+
 import numpy as np
 import pandas as pd
+import joblib
+
 import matplotlib.pyplot as plt
 import seaborn as sns
-import xlsxwriter
+
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -31,31 +30,35 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
     auc,
-    f1_score # Import f1_score explicitly
+    f1_score,
 )
+
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
+
 from docx import Document
-from docx.shared import Inches, Pt, RGBColor
+from docx.shared import Inches, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from IPython.display import display, HTML
 
 warnings.filterwarnings("ignore")
-print(" 🚀  PHASE 4 STARTED: DIAMOND SIMPLIFIED MODE (MACRO F1 SELECTION)")
-print("=" * 80)
+plt.style.use("default")
+sns.set_palette("viridis")
 
-# ==========================
-#  🎨  HELPER: STYLE TABLES
-# ==========================
+
+# -----------------------------------------------------------------------------------------
+# Helper: style Word tables
+# -----------------------------------------------------------------------------------------
 def style_word_table(table):
-    """Apply borders + blue header styling to a Word table."""
+    """Apply professional styling to Word tables (borders + blue header)."""
     tbl = table._tbl
     tblPr = tbl.tblPr
     tblBorders = tblPr.first_child_found_in("w:tblBorders")
     if tblBorders is None:
         tblBorders = OxmlElement("w:tblBorders")
         tblPr.append(tblBorders)
+
     for border in ["top", "left", "bottom", "right", "insideH", "insideV"]:
         edge = OxmlElement(f"w:{border}")
         edge.set(qn("w:val"), "single")
@@ -63,6 +66,7 @@ def style_word_table(table):
         edge.set(qn("w:space"), "0")
         edge.set(qn("w:color"), "000000")
         tblBorders.append(edge)
+
     for i, row in enumerate(table.rows):
         for cell in row.cells:
             for paragraph in cell.paragraphs:
@@ -80,63 +84,187 @@ def style_word_table(table):
                         run.font.bold = True
                         run.font.color.rgb = RGBColor(255, 255, 255)
 
-# ==========================
-#  💾  HELPER: SAVE MODELS
-# ==========================
+
+# -----------------------------------------------------------------------------------------
+# Helper: save models
+# -----------------------------------------------------------------------------------------
 def save_all_models(models_dict, save_dir="models"):
     """
-    Saves all ML/DL models to disk based on their type.
-    Uses .keras format for Keras models.
+    Save all ML/DL models in native formats:
+    - .pkl for traditional ML models
+    - .keras for Keras models
+    Returns a dict {logical_name: relative_path}.
     """
     os.makedirs(save_dir, exist_ok=True)
-    for model_name, model_obj in models_dict.items():
-        # Case 1 — Keras deep learning model
-        if isinstance(model_obj, KerasModel):
-            file_path = os.path.join(save_dir, f"{model_name}.keras")
-            model_obj.save(file_path)
-            print(f"[Saved] Keras model -> {file_path}")
-        # Case 2 — All pickle-compatible models (Sklearn, XGBoost)
+    saved_paths = {}
+
+    for name, model in models_dict.items():
+        if "Sequential" in str(type(model)):
+            path = os.path.join(save_dir, f"{name}.keras")
+            model.save(path)
+            print(f"  [Saved NN]  {path}")
         else:
-            file_path = os.path.join(save_dir, f"{model_name}.pkl")
-            joblib.dump(model_obj, file_path)
-            print(f"[Saved] Pickle model -> {file_path}")
-    print("\nAll models saved successfully!")
+            path = os.path.join(save_dir, f"{name}.pkl")
+            joblib.dump(model, path)
+            print(f"  [Saved ML]  {path}")
+        saved_paths[name] = os.path.basename(path)
 
-#REMOVED: calculate_weighted_score helper function is no longer needed.
+    print("✅ All models saved.")
+    return saved_paths
 
-# ==========================
+
+# -----------------------------------------------------------------------------------------
+# Helper: zip models folder
+# -----------------------------------------------------------------------------------------
+def create_models_zip(save_dir="models", zip_name="models.zip"):
+    """Create a compressed ZIP archive of the models folder."""
+    if os.path.exists(zip_name):
+        os.remove(zip_name)
+
+    with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(save_dir):
+            for file in files:
+                full_path = os.path.join(root, file)
+                arcname = os.path.relpath(full_path, ".")
+                zipf.write(full_path, arcname)
+    size_kb = os.path.getsize(zip_name) / 1024
+    print(f"✅ {zip_name} created ({size_kb:.1f} KB)")
+    return zip_name
+
+
+# -----------------------------------------------------------------------------------------
+# Helper: unified predictor file
+# -----------------------------------------------------------------------------------------
+def save_unified_predictor(scaler, label_encoder, model_paths, best_model_key, save_dir="models"):
+    """
+    Save:
+    - scaler.pkl
+    - label_encoder.pkl
+    - unified_ai_detector.py  (single entry point for inference)
+    model_paths: {logical_name: filename_inside_models_dir}
+    best_model_key: key in model_paths for best model (e.g., 'random_forest' or 'feedforward_nn')
+    """
+    os.makedirs(save_dir, exist_ok=True)
+
+    scaler_path = os.path.join(save_dir, "scaler.pkl")
+    le_path = os.path.join(save_dir, "label_encoder.pkl")
+    joblib.dump(scaler, scaler_path)
+    joblib.dump(label_encoder, le_path)
+
+    # Build Python code for unified predictor
+    lines = [
+        "import os",
+        "import joblib",
+        "import numpy as np",
+        "import tensorflow as tf",
+        "",
+        "",
+        "class UnifiedAIDetector:",
+        "    def __init__(self, models_dir='models'):",
+        "        self.models_dir = models_dir",
+        "        self.scaler = joblib.load(os.path.join(models_dir, 'scaler.pkl'))",
+        "        self.label_encoder = joblib.load(os.path.join(models_dir, 'label_encoder.pkl'))",
+        "",
+        "    def _load_model(self, fname):",
+        "        path = os.path.join(self.models_dir, fname)",
+        "        if fname.endswith('.keras'):",
+        "            return tf.keras.models.load_model(path), 'keras'",
+        "        else:",
+        "            return joblib.load(path), 'sklearn'",
+        "",
+        "    def predict_best_proba(self, X_new):",
+        "        '''Return AI probability using the best model only.'''",
+        "        X_scaled = self.scaler.transform(X_new)",
+        f"        model, mtype = self._load_model('{model_paths[best_model_key]}')",
+        "        if mtype == 'keras':",
+        "            probs = model.predict(X_scaled, verbose=0).flatten()",
+        "        else:",
+        "            probs = model.predict_proba(X_scaled)[:, 1]",
+        "        return probs",
+        "",
+        "    def predict_best_label(self, X_new, threshold=0.5):",
+        "        '''Return labels (0/1) using the best model only.'''",
+        "        probs = self.predict_best_proba(X_new)",
+        "        return (probs > threshold).astype(int)",
+        "",
+        "    def predict_all_proba(self, X_new):",
+        "        '''Return probabilities from all models as a dict.'''",
+        "        X_scaled = self.scaler.transform(X_new)",
+        "        results = {}",
+    ]
+
+    for logical_name, fname in model_paths.items():
+        key = logical_name
+        lines.extend(
+            [
+                f"        model, mtype = self._load_model('{fname}')",
+                "        if mtype == 'keras':",
+                "            probs = model.predict(X_scaled, verbose=0).flatten()",
+                "        else:",
+                "            probs = model.predict_proba(X_scaled)[:, 1]",
+                f"        results['{key}'] = probs",
+            ]
+        )
+
+    lines.extend(
+        [
+            "        return results",
+            "",
+            "",
+            "detector = UnifiedAIDetector()",
+            "print('🚀 UnifiedAIDetector ready. Use detector.predict_best_proba(X)')",
+        ]
+    )
+
+    predictor_path = os.path.join(save_dir, "unified_ai_detector.py")
+    with open(predictor_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    print(f"✅ Unified predictor saved: {predictor_path}")
+    return predictor_path
+
+
+# =========================================================================================
 # 1. LOAD DATASET
-# ==========================
-target_file = "Complete_Dataset_With_Features.xlsx"
+# =========================================================================================
+print("🚀 PHASE 4 STARTED: Modeling & Evaluation")
+print("=" * 80)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+data_path = os.path.join(BASE_DIR, "Complete_Dataset_With_Features.xlsx")
 sheet_name = "All_Data"
-if os.path.exists(target_file):
-    print(f" ✅  Found File: {target_file}")
-    try:
-        df_all = pd.read_excel(target_file, sheet_name=sheet_name)
-    except Exception:
-        df_all = pd.read_excel(target_file)
-else:
-    from google.colab import files
-    print(" 📂  Please upload 'Complete_Dataset_With_Features.xlsx'...")
-    uploaded = files.upload()
-    filename = list(uploaded.keys())[0]
-    df_all = pd.read_excel(filename, sheet_name=sheet_name)
+
+print("📂 Loading dataset...")
+if not os.path.exists(data_path):
+    raise FileNotFoundError(
+        f"Required file '{data_path}' not found. Run Phase 3 first."
+    )
+
+try:
+    df_all = pd.read_excel(data_path, sheet_name=sheet_name, engine="openpyxl")
+    print(f"✅ Loaded {len(df_all)} rows from sheet '{sheet_name}'")
+except Exception:
+    df_all = pd.read_excel(data_path, engine="openpyxl")
+    print(f"⚠️ Sheet '{sheet_name}' not found. Loaded default sheet: {len(df_all)} rows")
 
 text_col = "Text After Processing" if "Text After Processing" in df_all.columns else df_all.columns[0]
 orig_text_col = "Original Text" if "Original Text" in df_all.columns else text_col
 label_col = "Text Type" if "Text Type" in df_all.columns else "label"
-print(f" 📊  Total Rows: {len(df_all)}")
 
-# ==========================
-# 2. FEATURE PREPARATION (SMART MAPPING + L2-NORM)
-# ==========================
-# Normalize name of feature 98 to a single canonical name
+print(f"📊 Dataset shape: {df_all.shape}")
+print(f"📝 Text column: {text_col}")
+print(f"🏷️ Label column: {label_col}")
+
+# =========================================================================================
+# 2. FEATURE PREPARATION
+# =========================================================================================
+print("\n🔧 Preparing features...")
+
+# Normalize BERT feature name (if Phase 3 changed)
 feat98_name = "feat_098_bert_cls_l2norm"
 if "feat_098_bert_cls_norm" in df_all.columns:
-    print(" ℹ️  Detected feature name: 'feat_098_bert_cls_norm' -> using as L2-norm.")
     df_all.rename(columns={"feat_098_bert_cls_norm": feat98_name}, inplace=True)
 elif "feat_098_bert_cls_prob" in df_all.columns:
-    print(" ℹ️  Detected feature name: 'feat_098_bert_cls_prob' -> treating as L2-norm proxy.")
     df_all.rename(columns={"feat_098_bert_cls_prob": feat98_name}, inplace=True)
 
 required_features = [
@@ -149,45 +277,35 @@ required_features = [
 
 missing = [c for c in required_features if c not in df_all.columns]
 if missing:
-    raise ValueError(f" ❌  Missing columns: {missing}")
+    print("Available columns:", list(df_all.columns))
+    raise ValueError(f"Missing required features: {missing}")
 
-# Prepare X and y (keep indices for error-text export)
 indices = df_all.index.values
-X = df_all.loc[indices, required_features].fillna(0)
-y = df_all.loc[indices, label_col]
+X = df_all[required_features].fillna(0).values
+y = df_all[label_col].values
 
+# Encode labels
 le = LabelEncoder()
-y_enc = le.fit_transform(y)  # Binary: e.g., Human=0, AI=1
+y_enc = le.fit_transform(y)
 
-# --- DYNAMIC LABEL IDENTIFICATION ---
-# Identify label names and indices correctly based on data content
-label_map = {index: label for index, label in enumerate(le.classes_)}
-ai_label_name = None
-human_label_name = None
-
-for index, name in label_map.items():
-    # Simple heuristic: look for "AI" in the label name
-    if "AI" in name:
-        ai_label_name = name
-    else:
-        human_label_name = name
-
-# Fallback based on indices if naming is unconventional
-if ai_label_name is None: ai_label_name = le.classes_[1]
-if human_label_name is None: human_label_name = le.classes_[0]
-
-print(f" ℹ️  Class Mapping: Human='{human_label_name}', AI='{ai_label_name}'")
-
-# --- CRITICAL FIX: Update numerical ai_label based on found name ---
-# This ensures subsequent calculations use the correct numerical index for the AI class.
+# Dynamic human/AI label mapping
+label_map = {i: label for i, label in enumerate(le.classes_)}
+ai_label_name = next((v for v in label_map.values() if "AI" in v.upper()), le.classes_[1])
+human_label_name = next((v for v in label_map.values() if v != ai_label_name), le.classes_[0])
 ai_label = le.transform([ai_label_name])[0]
-# -----------------------------------------------------------------
 
+print(f"ℹ️ Classes: Human='{human_label_name}', AI='{ai_label_name}'")
+print(f"📈 Feature matrix: {X.shape}")
 
+# Scaling
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Split 70 / 15 / 15 using indices for later mapping
+# =========================================================================================
+# 3. TRAIN / VALIDATION / TEST SPLIT (70 / 15 / 15)
+# =========================================================================================
+print("\n🎯 Creating 70/15/15 stratified split...")
+
 idx_train, idx_temp, y_train, y_temp = train_test_split(
     indices, y_enc, test_size=0.30, random_state=42, stratify=y_enc
 )
@@ -195,7 +313,6 @@ idx_val, idx_test, y_val, y_test = train_test_split(
     idx_temp, y_temp, test_size=0.50, random_state=42, stratify=y_temp
 )
 
-# Split X_scaled directly with same random_state to stay aligned with y_enc
 X_train_s, X_temp_s, _, _ = train_test_split(
     X_scaled, y_enc, test_size=0.30, random_state=42, stratify=y_enc
 )
@@ -210,64 +327,69 @@ split_summary_df = pd.DataFrame(
         "Ratio": ["70%", "15%", "15%"],
     }
 )
-print("\n 📋  (Sheet 1) Random Data Split:")
-display(split_summary_df)
+print("\n📋 Data split summary:")
+print(split_summary_df.to_string(index=False))
 
-# ==========================
-# 3. TRAINING (ALL MODELS)
-# ==========================
-print("\n ⚙️  Training Models...")
+# =========================================================================================
+# 4. TRAIN TRADITIONAL ML MODELS (batch 1)
+# =========================================================================================
+print("\n⚙️ Training traditional ML models...")
+
 models = {
-    "Naive Bayes": GaussianNB(),
-    "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
-    "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
-    "SVM": SVC(kernel="rbf", probability=True, random_state=42),
-    "XGBoost": XGBClassifier(eval_metric="logloss", random_state=42, use_label_encoder=False),
+    "naive_bayes": GaussianNB(),
+    "logistic_regression": LogisticRegression(max_iter=1000, random_state=42),
+    "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
+    "svm": SVC(kernel="rbf", probability=True, random_state=42),
+    "xgboost": XGBClassifier(eval_metric="logloss", random_state=42),
 }
 
 results_list = []
 model_preds = {}
 model_probs = {}
 
-# 3.1 Traditional models (UPDATED for Macro F1)
-for name, model in models.items():
+for key, model in models.items():
+    print(f"  {key}...", end=" ")
     model.fit(X_train_s, y_train)
     preds = model.predict(X_test_s)
     probs = model.predict_proba(X_test_s)[:, 1]
-    model_preds[name] = preds
-    model_probs[name] = probs
 
-    # Generate detailed report as a dictionary
-    report_dict = classification_report(y_test, preds, output_dict=True, target_names=le.classes_, zero_division=0)
+    model_preds[key] = preds
+    model_probs[key] = probs
 
-    # Extract metrics safely using the dynamic names
+    report_dict = classification_report(
+        y_test,
+        preds,
+        output_dict=True,
+        target_names=le.classes_,
+        zero_division=0,
+    )
     ai_metrics = report_dict.get(ai_label_name, {})
     human_metrics = report_dict.get(human_label_name, {})
 
     results_list.append(
         {
-            "Model": name,
+            "Model": key.replace("_", " ").title(),
             "Accuracy": accuracy_score(y_test, preds),
-            # ADDED: Macro F1-Score (Average of both classes)
-            "Macro F1-Score": f1_score(y_test, preds, average='macro'),
+            "Macro F1-Score": f1_score(y_test, preds, average="macro"),
             "ROC-AUC": roc_auc_score(y_test, probs),
-            # AI Metrics
-            "Precision (AI)": ai_metrics.get('precision', 0),
-            "Recall (AI)": ai_metrics.get('recall', 0),
-            "F1-Score (AI)": ai_metrics.get('f1-score', 0),
-            # Human Metrics
-            "Precision (Human)": human_metrics.get('precision', 0),
-            "Recall (Human)": human_metrics.get('recall', 0),
-            "F1-Score (Human)": human_metrics.get('f1-score', 0),
-            "Type": "Traditional",
+            "Precision (AI)": ai_metrics.get("precision", 0),
+            "Recall (AI)": ai_metrics.get("recall", 0),
+            "F1-Score (AI)": ai_metrics.get("f1-score", 0),
+            "Precision (Human)": human_metrics.get("precision", 0),
+            "Recall (Human)": human_metrics.get("recall", 0),
+            "F1-Score (Human)": human_metrics.get("f1-score", 0),
         }
     )
+    print("done.")
 
-# 3.2 Neural Network on tabular features
-print(" 🧠  Training Neural Network...")
-# Setting seeds for reproducibility
-np.random.seed(42)
+# =========================================================================================
+# 5. TRAIN NEURAL NETWORK (batch 2)
+# =========================================================================================
+print("\n🧠 Training feedforward Neural Network...")
+
 import tensorflow as tf
+
+np.random.seed(42)
 tf.random.set_seed(42)
 
 nn_model = Sequential(
@@ -282,6 +404,7 @@ nn_model = Sequential(
     ]
 )
 nn_model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+
 history = nn_model.fit(
     X_train_s,
     y_train,
@@ -293,127 +416,163 @@ history = nn_model.fit(
 
 nn_probs = nn_model.predict(X_test_s, verbose=0).flatten()
 nn_preds = (nn_probs > 0.5).astype(int)
-nn_name = "Feedforward NN + BERT (768D)"
-model_preds[nn_name] = nn_preds
-model_probs[nn_name] = nn_probs
+nn_key = "feedforward_nn"
 
-# Generate detailed report for NN
-report_dict_nn = classification_report(y_test, nn_preds, output_dict=True, target_names=le.classes_, zero_division=0)
+model_preds[nn_key] = nn_preds
+model_probs[nn_key] = nn_probs
+
+report_dict_nn = classification_report(
+    y_test,
+    nn_preds,
+    output_dict=True,
+    target_names=le.classes_,
+    zero_division=0,
+)
 ai_metrics_nn = report_dict_nn.get(ai_label_name, {})
 human_metrics_nn = report_dict_nn.get(human_label_name, {})
 
 results_list.append(
     {
-        "Model": nn_name,
+        "Model": "Feedforward NN + BERT",
         "Accuracy": accuracy_score(y_test, nn_preds),
-        # ADDED: Macro F1-Score for NN
-        "Macro F1-Score": f1_score(y_test, nn_preds, average='macro'),
+        "Macro F1-Score": f1_score(y_test, nn_preds, average="macro"),
         "ROC-AUC": roc_auc_score(y_test, nn_probs),
-        # AI Metrics
-        "Precision (AI)": ai_metrics_nn.get('precision', 0),
-        "Recall (AI)": ai_metrics_nn.get('recall', 0),
-        "F1-Score (AI)": ai_metrics_nn.get('f1-score', 0),
-        # Human Metrics
-        "Precision (Human)": human_metrics_nn.get('precision', 0),
-        "Recall (Human)": human_metrics_nn.get('recall', 0),
-        "F1-Score (Human)": human_metrics_nn.get('f1-score', 0),
-        "Type": "Deep Learning",
+        "Precision (AI)": ai_metrics_nn.get("precision", 0),
+        "Recall (AI)": ai_metrics_nn.get("recall", 0),
+        "F1-Score (AI)": ai_metrics_nn.get("f1-score", 0),
+        "Precision (Human)": human_metrics_nn.get("precision", 0),
+        "Recall (Human)": human_metrics_nn.get("recall", 0),
+        "F1-Score (Human)": human_metrics_nn.get("f1-score", 0),
     }
 )
 
-# Combine DataFrames
+# =========================================================================================
+# 6. RESULTS & BEST MODEL
+# =========================================================================================
 all_results_df = pd.DataFrame(results_list)
-trad_results_df = all_results_df[all_results_df["Type"] == "Traditional"].drop(columns=["Type"])
-all_models_df = all_results_df.drop(columns=["Type"])
-history_df = pd.DataFrame(history.history)
-
-# ==========================
-# 4. BEST MODEL SELECTION (SIMPLIFIED: BASED ON MACRO F1-SCORE)
-# ==========================
-print("\n ⚖️  Selecting Best Model based on Macro F1-Score...")
-
-# ----- SIMPLIFIED SECTION START -----
-# No weights, no custom calculation function.
-# Just select based on the single best metric for balance: Macro F1-Score.
-
 target_metric = "Macro F1-Score"
-best_model_idx = all_models_df[target_metric].idxmax()
-best_model_name = all_models_df.loc[best_model_idx, "Model"]
-best_model_score = all_models_df.loc[best_model_idx, target_metric]
 
-print(f"\n 🏆  Best Model (based on {target_metric}): {best_model_name}")
-print(f"    {target_metric}: {best_model_score:.4f}")
-# ----- SIMPLIFIED SECTION END -----
+best_idx = all_results_df[target_metric].idxmax()
+best_model_name = all_results_df.loc[best_idx, "Model"]
+best_model_score = all_results_df.loc[best_idx, target_metric]
 
+# Map back from pretty name to internal key
+pretty_to_key = {v["Model"]: k for k, v in zip(model_preds.keys(), results_list)}
+best_key_internal = None
+for k, v in zip(model_preds.keys(), all_results_df["Model"]):
+    if v == best_model_name:
+        best_key_internal = k
+        break
 
-# --- DISPLAY TABLES ON SCREEN (UPDATED) ---
-print("\n 📋  (Sheet 2) Traditional ML Results (Full Metrics):")
-display(trad_results_df)
-# Sort by the new target metric
-print(f"\n 📋  (Sheet 3) All Models Results (Sorted by {target_metric}):")
-display(all_models_df.sort_values(by=target_metric, ascending=False))
-print("\n 📋  (Sheet 4) Neural Network Training History (First 5 Epochs):")
-display(history_df.head())
-# ----------------------------------------
+print("\n🏆 BEST MODEL SELECTED")
+print(f"   Name : {best_model_name}")
+print(f"   {target_metric}: {best_model_score:.4f}")
 
+print("\n📋 All models (sorted):")
+print(all_results_df.sort_values(target_metric, ascending=False).round(4).to_string(index=False))
 
-# 4.1 Best Model Detailed Report
-best_report = classification_report(y_test, model_preds[best_model_name], output_dict=True, target_names=le.classes_)
+# Best model detailed report
+best_report = classification_report(
+    y_test,
+    model_preds[best_key_internal],
+    output_dict=True,
+    target_names=le.classes_,
+)
 best_model_report_df = pd.DataFrame(best_report).transpose()
-print(f"\n 📋  (Sheet 5) Detailed Report for Best Model ({best_model_name}):")
-display(best_model_report_df)
 
-# 4.2 Feature importance
-print("\n 🌟  Calculating Feature Importance...")
-imp_model = models["Random Forest"]
-if best_model_name in models and hasattr(models[best_model_name], "feature_importances_"):
-    imp_model = models[best_model_name]
+# Feature importance (from Random Forest)
+tree_model = models["random_forest"]
+importances = tree_model.feature_importances_
+feat_imp_df = (
+    pd.DataFrame({"Feature": required_features, "Importance": importances})
+    .sort_values("Importance", ascending=False)
+    .reset_index(drop=True)
+)
 
-if hasattr(imp_model, "feature_importances_"):
-    importances = imp_model.feature_importances_
-    feat_imp_df = pd.DataFrame(
-        {"Feature": required_features, "Importance": importances}
-    ).sort_values(by="Importance", ascending=False)
-    print("\n 📋  (Sheet 6) Feature Importance:")
-    display(feat_imp_df)
-
-    plt.figure(figsize=(8, 5))
-    sns.barplot(x="Importance", y="Feature", data=feat_imp_df, palette="viridis")
-    plt.title("Feature Importance (Best Tree-Based Model)")
-    plt.tight_layout()
-    plt.savefig("feature_importance.png")
-    plt.show()
-    plt.close()
-else:
-    feat_imp_df = pd.DataFrame({"Feature": required_features, "Importance": np.nan})
-    print("Feature importance not available for the selected best model.")
-
-# 4.3 Error texts for best model
-print("\n 📝  Extracting Error Texts...")
+# Error analysis
 test_subset = df_all.loc[idx_test].copy()
 test_subset["True_Label"] = le.inverse_transform(y_test)
-test_subset["Predicted_Label"] = le.inverse_transform(model_preds[best_model_name])
-test_subset["Prob_AI"] = model_probs[best_model_name]
-error_df = test_subset[test_subset["True_Label"] != test_subset["Predicted_Label"]].copy()
+test_subset["Predicted_Label"] = le.inverse_transform(model_preds[best_key_internal])
+test_subset["Prob_AI"] = model_probs[best_key_internal]
+
+error_df = test_subset[test_subset["True_Label"] != test_subset["Predicted_Label"]]
 export_cols = [orig_text_col, "True_Label", "Predicted_Label", "Prob_AI"] + required_features
 error_df_clean = error_df[export_cols] if not error_df.empty else pd.DataFrame(columns=export_cols)
 
-if not error_df_clean.empty:
-    print(f"Found {len(error_df_clean)} misclassified samples.")
-    print(" 📋  (Sheet 7) Error Analysis Preview (First 3 samples):")
-    display(error_df_clean.head(3))
-else:
-    print("✅ Perfect accuracy! No errors to analyze.")
+print(f"\n🔍 Misclassified samples: {len(error_df_clean)}")
 
+# =========================================================================================
+# 7. VISUALIZATIONS
+# =========================================================================================
+print("\n📈 Creating visualizations...")
 
-# ==========================
-# 5. VISUALIZATION & WORD REPORT
-# ==========================
-print("\n 🎨  Generating Visuals & Word Report...")
+# 1) Feature importance
+plt.figure(figsize=(8, 5))
+sns.barplot(data=feat_imp_df, x="Importance", y="Feature")
+plt.title("Feature Importance (Random Forest)")
+plt.tight_layout()
+plt.savefig("feature_importance.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# 2) Model performance comparison
+plt.figure(figsize=(12, 6))
+melted_df = all_results_df.melt(
+    id_vars="Model",
+    value_vars=["Accuracy", "Macro F1-Score", "ROC-AUC"],
+    var_name="Metric",
+    value_name="Score",
+)
+sns.barplot(data=melted_df, x="Model", y="Score", hue="Metric")
+plt.title("Model Performance Comparison")
+plt.xticks(rotation=45)
+plt.ylim(0, 1.05)
+plt.tight_layout()
+plt.savefig("model_performance.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# 3) ROC curves
+plt.figure(figsize=(8, 6))
+for k, probs in model_probs.items():
+    fpr, tpr, _ = roc_curve(y_test, probs)
+    auc_val = auc(fpr, tpr)
+    label = k if len(k) <= 12 else k[:12]
+    plt.plot(fpr, tpr, label=f"{label} (AUC={auc_val:.3f})")
+plt.plot([0, 1], [0, 1], "k--", alpha=0.5)
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curves (All Models)")
+plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8)
+plt.tight_layout()
+plt.savefig("roc_curves.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+# 4) NN training history
+history_df = pd.DataFrame(history.history)
+plt.figure(figsize=(10, 4))
+plt.subplot(1, 2, 1)
+plt.plot(history_df["accuracy"], label="Train")
+plt.plot(history_df["val_accuracy"], label="Validation")
+plt.title("NN Accuracy")
+plt.legend()
+plt.subplot(1, 2, 2)
+plt.plot(history_df["loss"], label="Train")
+plt.plot(history_df["val_loss"], label="Validation")
+plt.title("NN Loss")
+plt.legend()
+plt.tight_layout()
+plt.savefig("nn_history.png", dpi=300, bbox_inches="tight")
+plt.close()
+
+print("✅ Plots saved: feature_importance.png, model_performance.png, roc_curves.png, nn_history.png")
+
+# =========================================================================================
+# 8. WORD REPORT
+# =========================================================================================
+print("\n📄 Generating Word report...")
+
 doc = Document()
-doc.add_heading("Final Classification Report", 0)
+doc.add_heading("Arabic AI vs Human Text Classification - Phase 4", 0)
 
-# --- ADDED: Data Split Table to Word ---
 doc.add_heading("1. Data Split Summary", level=1)
 table = doc.add_table(rows=len(split_summary_df) + 1, cols=len(split_summary_df.columns))
 style_word_table(table)
@@ -423,206 +582,90 @@ for i, row in split_summary_df.iterrows():
     for j, val in enumerate(row):
         table.rows[i + 1].cells[j].text = str(val)
 
-# --- ADDED: Best Model Info to Word (UPDATED MESSAGE) ---
-doc.add_heading("2. Best Model Selection", level=1)
-# Updated paragraph to reflect the new simple selection criteria
-doc.add_paragraph(f"The best performing model, selected based on the highest Macro F1-Score (average F1-score of both classes), is: {best_model_name} with a score of {best_model_score:.4f}.")
+doc.add_heading("2. Best Model", level=1)
+doc.add_paragraph(f"Best model (by Macro F1-Score): {best_model_name} ({best_model_score:.4f})")
 
-# 5.1 Overall metrics table (UPDATED sorting)
-doc.add_heading("3. Model Metrics Summary (Sorted by Macro F1-Score)", level=1)
-# Sort dataframe by the new target metric
-all_models_sorted = all_models_df.sort_values(by=target_metric, ascending=False)
-table = doc.add_table(rows=len(all_models_sorted) + 1, cols=len(all_models_sorted.columns))
+doc.add_heading("3. Model Performance Table", level=1)
+all_sorted = all_results_df.sort_values(target_metric, ascending=False)
+table = doc.add_table(rows=len(all_sorted) + 1, cols=len(all_sorted.columns))
 style_word_table(table)
-for i, col in enumerate(all_models_sorted.columns):
+for i, col in enumerate(all_sorted.columns):
     table.rows[0].cells[i].text = str(col)
-for i, row in all_models_sorted.iterrows():
+for i, row in all_sorted.iterrows():
     for j, val in enumerate(row):
-        if isinstance(val, float):
-            table.rows[i + 1].cells[j].text = f"{val:.4f}"
-        else:
-            table.rows[i + 1].cells[j].text = str(val)
+        table.rows[i + 1].cells[j].text = f"{val:.4f}" if isinstance(val, (float, np.floating)) else str(val)
 
-# --- ADDED: Detailed Best Model Report to Word ---
 doc.add_heading("4. Best Model Detailed Report", level=1)
 table = doc.add_table(rows=len(best_model_report_df) + 1, cols=len(best_model_report_df.columns) + 1)
 style_word_table(table)
 table.rows[0].cells[0].text = "Metric"
 for i, col in enumerate(best_model_report_df.columns):
-    table.rows[0].cells[i+1].text = str(col)
-for i, (index, row) in enumerate(best_model_report_df.iterrows()):
-    table.rows[i + 1].cells[0].text = str(index)
+    table.rows[0].cells[i + 1].text = str(col)
+for i, (idx, row) in enumerate(best_model_report_df.iterrows()):
+    table.rows[i + 1].cells[0].text = str(idx)
     for j, val in enumerate(row):
-        if isinstance(val, float):
-            table.rows[i + 1].cells[j+1].text = f"{val:.4f}"
-        else:
-            table.rows[i + 1].cells[j+1].text = str(val)
+        table.rows[i + 1].cells[j + 1].text = f"{val:.4f}" if isinstance(val, (float, np.floating)) else str(val)
 
-
-# 5.2 Performance Benchmark Plot (UPDATED to show Macro F1 instead of Weighted)
-doc.add_heading("5. Performance Benchmark Plot (Key Metrics)", level=1)
-# Replace Weighted_Score with Macro F1-Score in the plot
-melted_df = all_models_df.melt(id_vars="Model",
-                               value_vars=["Accuracy", "ROC-AUC", "F1-Score (AI)", "F1-Score (Human)", "Macro F1-Score"],
-                               var_name="Metric", value_name="Score")
-plt.figure(figsize=(14, 7))
-sns.barplot(data=melted_df, x="Model", y="Score", hue="Metric", palette="colorblind")
-plt.title("Model Performance Comparison (Key Metrics)")
-plt.xlabel("Model")
-plt.ylabel("Score")
-plt.xticks(rotation=45)
-plt.ylim(0, 1.1)
-plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-plt.tight_layout()
-benchmark_plot_file = "model_performance_comparison.png"
-plt.savefig(benchmark_plot_file)
-plt.show()
-plt.close()
-doc.add_picture(benchmark_plot_file, width=Inches(6))
-
-# --- ADDED: ROC Curves Plot ---
-doc.add_heading("6. ROC Curves (All Models)", level=1)
-plt.figure(figsize=(10, 8))
-for name, probs in model_probs.items():
-    fpr, tpr, _ = roc_curve(y_test, probs)
-    roc_auc = auc(fpr, tpr)
-    plt.plot(fpr, tpr, label=f'{name} (AUC = {roc_auc:.4f})')
-plt.plot([0, 1], [0, 1], 'k--', label='Random Chance')
-plt.xlim([0.0, 1.0])
-plt.ylim([0.0, 1.05])
-plt.xlabel('False Positive Rate')
-plt.ylabel('True Positive Rate')
-plt.title('ROC Curves (All Models)')
-plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-plt.tight_layout()
-roc_plot_file = "roc_curves_all_models.png"
-plt.savefig(roc_plot_file)
-plt.show()
-plt.close()
-doc.add_picture(roc_plot_file, width=Inches(6))
-
-
-# 5.3 Per-model CM + Error Confidence
-doc.add_heading("7. Model Analysis (Confusion Matrix + Error Confidence)", level=1)
-for name in model_preds.keys():
-    doc.add_heading(f"Model: {name}", level=2)
-    preds = model_preds[name]
-    probs = model_probs[name]
-
-    # Confusion Matrix
-    cm = confusion_matrix(y_test, preds)
-    plt.figure(figsize=(5, 4))
-    cmap = "Greens" if name == best_model_name else "Blues"
-    sns.heatmap(
-        cm,
-        annot=True,
-        fmt="d",
-        cmap=cmap,
-        xticklabels=le.classes_,
-        yticklabels=le.classes_,
-    )
-    plt.title(f"Confusion Matrix: {name}")
-    plt.tight_layout()
-    cm_file = f"cm_{name.replace(' ', '_')}.png"
-    plt.savefig(cm_file)
-    plt.show()
-    plt.close()
-    doc.add_paragraph("Confusion Matrix:")
-    doc.add_picture(cm_file, width=Inches(4))
-
-    # Error Confidence
-    # CRITICAL FIX: Use the correctly identified numerical ai_label here
-    confs = [p if pred == ai_label else 1 - p for p, pred in zip(probs, preds)]
-    errors_mask = y_test != preds
-    error_confs = [c for c, e in zip(confs, errors_mask) if e]
-    if error_confs:
-        plt.figure(figsize=(6, 4))
-        sns.histplot(error_confs, bins=10, kde=True, color="red")
-        plt.title(f"Error Confidence: {name}")
-        plt.xlabel("Confidence in Wrong Decision")
-        plt.axvline(0.5, color="black", linestyle="--")
-        plt.tight_layout()
-        err_file = f"err_{name.replace(' ', '_')}.png"
-        plt.savefig(err_file)
-        plt.show()
-        plt.close()
-        doc.add_paragraph("Error Confidence Analysis:")
-        doc.add_picture(err_file, width=Inches(4))
-    else:
-        doc.add_paragraph("No misclassified samples for this model (Accuracy 100%).")
-
-# 5.4 Feature importance image (if available)
-doc.add_heading("8. Feature Importance (Best Tree-Based Model)", level=1)
-if "feature_importance.png" in os.listdir():
-    doc.add_picture("feature_importance.png", width=Inches(6))
-else:
-    doc.add_paragraph("Feature importance not available for the selected best model.")
-
-# 5.5 Neural Network training history
-doc.add_heading("9. Neural Network Training History", level=1)
-plt.figure(figsize=(10, 4))
-plt.subplot(1, 2, 1)
-plt.plot(history.history["accuracy"], label="Train")
-plt.plot(history.history["val_accuracy"], label="Val")
-plt.title("Accuracy")
-plt.legend()
-plt.subplot(1, 2, 2)
-plt.plot(history.history["loss"], label="Train")
-plt.plot(history.history["val_loss"], label="Val")
-plt.title("Loss")
-plt.legend()
-plt.tight_layout()
-plt.savefig("nn_history.png")
-plt.show()
-plt.close()
-doc.add_picture("nn_history.png", width=Inches(6))
+doc.add_heading("5. Visualizations", level=1)
+for img in ["model_performance.png", "roc_curves.png", "feature_importance.png", "nn_history.png"]:
+    if os.path.exists(img):
+        doc.add_picture(img, width=Inches(6))
 
 doc.save("Final_Classification_Report.docx")
+print("✅ Word report saved: Final_Classification_Report.docx")
 
-# ==========================
-# 6. EXCEL EXPORT (EXACT STRUCTURE + EXTRAS)
-# ==========================
-output_excel = "Classification_Results_Complete.xlsx"
-print(f"\n 💾  Saving Excel: {output_excel}...")
-with pd.ExcelWriter(output_excel, engine="xlsxwriter") as writer:
-    split_summary_df.to_excel(writer, sheet_name="Data Split Summary", index=False)
-    trad_results_df.to_excel(writer, sheet_name="Traditional ML Results", index=False)
-    # Sort by the new target metric in Excel too
-    all_models_df.sort_values(by=target_metric, ascending=False).to_excel(writer, sheet_name="All Models Results", index=False)
-    # Create a single-row DataFrame for the best model name and score
-    pd.DataFrame({"Best Model Name": [best_model_name], f"Best {target_metric}": [best_model_score]}).to_excel(writer, sheet_name="Best Model Selection", index=False)
-    best_model_report_df.to_excel(writer, sheet_name="Best Model Detailed Report", index=True)
-    history_df.to_excel(writer, sheet_name="NN Training History", index=True)
-    feat_imp_df.to_excel(writer, sheet_name="Feature Importance", index=False)
+# =========================================================================================
+# 9. EXCEL REPORT
+# =========================================================================================
+print("\n📊 Generating Excel report...")
+
+excel_out = "Classification_Results_Complete.xlsx"
+with pd.ExcelWriter(excel_out, engine="xlsxwriter") as writer:
+    split_summary_df.to_excel(writer, "01_Data_Split", index=False)
+    all_results_df.sort_values(target_metric, ascending=False).round(4).to_excel(
+        writer, "02_All_Results", index=False
+    )
+    pd.DataFrame({"Best_Model": [best_model_name], target_metric: [best_model_score]}).to_excel(
+        writer, "03_Best_Model", index=False
+    )
+    best_model_report_df.round(4).to_excel(writer, "04_Best_Detailed_Report", index=True)
+    feat_imp_df.round(4).to_excel(writer, "05_Feature_Importance", index=False)
+    history_df.round(4).to_excel(writer, "06_NN_Training_History", index=True)
     if not error_df_clean.empty:
-        error_df_clean.to_excel(writer, sheet_name="Error Analysis Texts", index=False)
+        error_df_clean.to_excel(writer, "07_Error_Analysis", index=False)
+    else:
+        pd.DataFrame({"Status": ["Perfect accuracy - no errors"]}).to_excel(
+            writer, "07_Error_Analysis", index=False
+        )
 
-print("\n 🎉  PHASE 4 COMPLETE! (DIAMOND SIMPLIFIED EDITION)")
-print(" 📥  Downloading Report & Excel...")
-from google.colab import files
-files.download(output_excel)
-files.download("Final_Classification_Report.docx")
+print(f"✅ Excel report saved: {excel_out}")
 
-# ==========================
-# 7. SAVE TRAINED MODELS
-# ==========================
-# Create models directory (if it does not exist)
-os.makedirs("models", exist_ok=True)
+# =========================================================================================
+# 10. SAVE MODELS + UNIFIED PREDICTOR + ZIP
+# =========================================================================================
+print("\n💾 Saving models and unified predictor...")
 
-# Map the trained models to concise names
-models_dict = {
-    "naive_bayes":          models["Naive Bayes"],
-    "logistic_regression":  models["Logistic Regression"],
-    "random_forest":        models["Random Forest"],
-    "svm":                  models["SVM"],
-    "xgboost":              models["XGBoost"],
-    "ffnn":                 nn_model,   # Feedforward Neural Network
-}
+models_dict = {**models, nn_key: nn_model}
+model_paths = save_all_models(models_dict, save_dir="models")
+predictor_path = save_unified_predictor(
+    scaler, le, model_paths, best_key_internal, save_dir="models"
+)
+zip_path = create_models_zip(save_dir="models", zip_name="models.zip")
 
-# Save all models to disk using the same strategy as your colleague
-save_all_models(models_dict, save_dir="models")
-
-# Zip and download the models folder
-print(" 📦  Zipping models folder...")
-!zip -r models.zip models > /dev/null 2>&1
-files.download("models.zip")
+# =========================================================================================
+# 11. FINAL SUMMARY
+# =========================================================================================
+print("\n" + "=" * 80)
+print("🎉 PHASE 4 COMPLETED SUCCESSFULLY")
+print("=" * 80)
+print(f"📊 Excel:  {excel_out}")
+print("📄 Word:   Final_Classification_Report.docx")
+print("📁 Models: models/  (ML + NN + scaler + label_encoder + unified_ai_detector.py)")
+print(f"📦 ZIP:    {zip_path}")
+print("🖼  Plots:  model_performance.png, roc_curves.png, feature_importance.png, nn_history.png")
+print(f"\n🏆 Best model: {best_model_name}  |  Macro F1-Score = {best_model_score:.4f}")
+print(f"🔍 Misclassified samples: {len(error_df_clean)}")
+print("=" * 80)
+print("Usage example:")
+print("  from models.unified_ai_detector import detector")
+print("  probs = detector.predict_best_proba(X_new_scaled_features)")

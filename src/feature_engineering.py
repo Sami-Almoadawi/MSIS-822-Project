@@ -2,90 +2,137 @@
 # PHASE 3: FEATURE ENGINEERING & DATA SPLITTING
 # =================================================================================================
 
-
 # 1- Task 3.1:
 # Engineer Individual Stylometric Feature Assignment (6، 29، 52، 75، 98)
 
 # 1. INSTALL SYSTEM DEPENDENCIES AND LIBRARIES
 print("⏳ Installing system dependencies and libraries...")
-!apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info > /dev/null 2>&1
-!pip install scikit-learn transformers torch tqdm pandas numpy nltk openpyxl xlsxwriter python-docx weasyprint --quiet > /dev/null 2>&1
-
+import sys
 # 2. IMPORTS
+print("🚀 PHASE 3 STARTED: Feature Engineering") 
+print("=" * 80)
+
 import os
 import gc
 import re
 import warnings
+from datetime import datetime
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
 import torch
-from google.colab import files
+import joblib
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
-
 from docx import Document
-from docx.shared import Inches, Pt
-from IPython.display import HTML, display
-import weasyprint
+from docx.shared import Inches, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+import openpyxl  # noqa: F401 (needed by pandas ExcelWriter)
 
+# -----------------------------------------------------------------------------------------
+# Global settings
+# -----------------------------------------------------------------------------------------
 warnings.filterwarnings("ignore")
-
-print("🚀 PHASE 3 INITIALIZED: OPTIMIZED BATCH MODE")
-print("=" * 80)
-
-# =================================================================================================
-# 3. LOAD DATASET (preprocessing_results.xlsx)
-# =================================================================================================
-
-# Prefer local file to avoid repeated uploads
-if os.path.exists("preprocessing_results.xlsx"):
-    filename = "preprocessing_results.xlsx"
-    print(f"✅ Found file locally: {filename}")
-else:
-    print("\n📂 Please upload 'preprocessing_results.xlsx'...")
-    uploaded = files.upload()
-    if len(uploaded) == 0:
-        raise ValueError("❌ No file uploaded.")
-    filename = list(uploaded.keys())[0]
-    print(f"✅ Using uploaded file: {filename}")
-
-# =================================================================================================
-# 4. LOAD & MERGE ALL SHEETS
-# =================================================================================================
-
-print("⏳ Loading and merging sheets from Excel...")
+tqdm.pandas()
 
 try:
-    excel = pd.ExcelFile(filename)
-    frames = []
+    from IPython.display import display  # type: ignore
+    IS_JUPYTER = True
+except ImportError:  # fallback for non-notebook environments
+    IS_JUPYTER = False
+
+    def display(x):
+        print(x)
+
+
+# =========================================================================================
+# Helper functions
+# =========================================================================================
+
+def style_word_table(table) -> None:
+    """Apply borders and blue header styling to a Word table."""
+    tbl = table._tbl
+    tblPr = tbl.tblPr
+    tblBorders = tblPr.first_child_found_in("w:tblBorders")
+    if tblBorders is None:
+        tblBorders = OxmlElement("w:tblBorders")
+        tblPr.append(tblBorders)
+
+    # Add borders
+    for border in ["top", "left", "bottom", "right", "insideH", "insideV"]:
+        edge = OxmlElement(f"w:{border}")
+        edge.set(qn("w:val"), "single")
+        edge.set(qn("w:sz"), "4")
+        edge.set(qn("w:space"), "0")
+        edge.set(qn("w:color"), "000000")
+        tblBorders.append(edge)
+
+    # Header row styling
+    for i, row in enumerate(table.rows):
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            if i == 0:
+                tc = cell._element
+                tcPr = tc.get_or_add_tcPr()
+                shd = OxmlElement("w:shd")
+                shd.set(qn("w:val"), "clear")
+                shd.set(qn("w:color"), "auto")
+                shd.set(qn("w:fill"), "2E75B6")
+                tcPr.append(shd)
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.bold = True
+                        run.font.color.rgb = RGBColor(255, 255, 255)
+
+
+def load_preprocessing_excel(path: str) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    """
+    Load all sheets from preprocessing_results.xlsx and build:
+    - df_all: concatenated DataFrame
+    - split_dfs: dict of per-split DataFrames
+    """
+    print("📂 Loading preprocessing_results.xlsx...")
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            f"'preprocessing_results.xlsx' not found at:\n  {path}\n"
+            f"Run the preprocessing phase first."
+        )
+
+    excel = pd.ExcelFile(path)
+    frames: List[pd.DataFrame] = []
+    split_dfs: Dict[str, pd.DataFrame] = {}
 
     for sheet in excel.sheet_names:
-        df = pd.read_excel(filename, sheet_name=sheet)
+        print(f"  ↳ Processing sheet: {sheet}")
+        df = pd.read_excel(path, sheet_name=sheet)
 
-        # Derive split name from sheet name
-        split_prefix = sheet.split("_")[0]
+        # Robust mapping from sheet name to split label
+        split_prefix = sheet.split("_")[0].lower() if "_" in sheet else sheet.lower()
         if split_prefix == "by":
             split_name = "by_polishing"
         elif split_prefix == "from":
-            split_name = (
-                "from_title_and_content" if "title_and_content" in sheet else "from_title"
-            )
+            split_name = "from_title_and_content" if "title_and_content" in sheet.lower() else "from_title"
         else:
             split_name = split_prefix
 
-        # Detect text type (Human vs AI)
-        text_type = "Human" if "original_abstract" in sheet else "AI"
+        # Text type: Human vs AI
+        text_type = "Human" if "original_abstract" in sheet.lower() else "AI"
 
         df["Split"] = split_name
         df["Text Type"] = text_type
+
         frames.append(df)
+        split_dfs[split_name] = df
 
     df_all = pd.concat(frames, ignore_index=True)
 
-    # Standardize column names
-    if "Original" in df_all.columns:
+    # Normalize column names if they exist
+    if {"Original", "After Preprocessing"}.issubset(df_all.columns):
         df_all = df_all.rename(
             columns={
                 "Original": "Original Text",
@@ -93,347 +140,330 @@ try:
             }
         )
 
-    print(f"✅ Dataset loaded successfully: {len(df_all)} rows.")
+    if "Text After Processing" not in df_all.columns:
+        raise KeyError(
+            "Required column 'Text After Processing' is missing.\n"
+            "Check the schema of preprocessing_results.xlsx."
+        )
 
-except Exception as e:
-    raise ValueError(f"❌ Error while loading Excel file: {e}")
+    print(f"✅ Dataset loaded: {len(df_all):,} rows")
+    print(f"   Splits detected: {list(split_dfs.keys())}")
+    return df_all, split_dfs
 
-# Ensure required text column exists
-if "Text After Processing" not in df_all.columns:
-    raise ValueError(
-        "❌ Column 'Text After Processing' not found. Please check preprocessing output."
-    )
 
-# =========================================================================================
-# TASK 3.1: STYLOMETRIC FEATURE ENGINEERING (6, 29, 52, 75, 98)
-# =========================================================================================
+# --- Stylometric features ----------------------------------------------------------------
 
-# 5. FEATURE DEFINITIONS (LIGHTWEIGHT FEATURES)
-
-def feat_006_multiple_elongations(text):
-    """
-    Feature 6: Number of multiple character elongations (e.g., ههههه).
-    Counts any character repeated at least 3 times consecutively.
-    """
+def feat_006_multiple_elongations(text: str) -> int:
+    """Count occurrences of character elongation (3+ repeated chars)."""
     if not isinstance(text, str):
         return 0
     return len(re.findall(r"(.)\1{2,}", text))
 
 
-def feat_029_semicolons(text):
-    """
-    Feature 29: Number of semicolons.
-    Counts Arabic semicolon (؛) occurrences.
-    """
+def feat_029_semicolons(text: str) -> int:
+    """Count Arabic semicolons in text."""
     if not isinstance(text, str):
         return 0
     return text.count("؛")
 
 
 INTERJECTIONS_AR = {
-    "آه", "أوه", "واه", "وي", "واأسفي", "واحزناه", "مرحى", "أيا", "هيا", "هاه",
-    "يا سلام", "ما شاء الله", "يا لها", "يا له", "برافو", "الله", "يالها", "ياللعجب",
-    "آي", "أي", "ياه", "يا", "يالا", "يالله", "واها", "وا", "وا سلاماه", "وا قسطاه",
-    "وا ويلاه", "ياهو", "خيبة", "ويح", "يا إلهي", "آمين", "سبحان", "ياسلام", "يا رب"
+    "آه", "أوه", "واه", "وي", "هيا", "يا", "الله", "آمين", "سبحان", "ياسلام"
 }
 
-def feat_052_interjections(text):
-    """
-    Feature 52: Number of interjections.
-    Counts how many tokens match a predefined list of Arabic interjections.
-    """
+
+def feat_052_interjections(text: str) -> int:
+    """Count Arabic interjections from a predefined list."""
     if not isinstance(text, str):
         return 0
     words = text.split()
     return sum(1 for w in words if w.strip() in INTERJECTIONS_AR)
 
 
-def feat_075_active_voice_sentences(text):
+def feat_075_active_voice_sentences(text: str) -> int:
     """
-    Feature 75: Number of active voice sentences.
-    Approximation: sentences that do NOT contain common passive markers.
+    Approximate count of active-voice sentences by excluding simple passive markers.
+    This is a heuristic, not full Arabic syntax analysis.
     """
     if not isinstance(text, str):
         return 0
+
     sentences = re.split(r"[.!؟\n\r]+", text)
-    passive_markers = ["تُ", "يُ", "أُ", "وُ", "تم ", "تمت ", "تمّ ", "تمّت "]
-    active_count = 0
+    passive_markers = ["تُ", "يُ", "أُ", "تم ", "تمت ", "تمّ ", "تمّت "]
+
+    count = 0
     for s in sentences:
         s = s.strip()
         if not s:
             continue
         if not any(pm in s for pm in passive_markers):
-            active_count += 1
-    return active_count
+            count += 1
+    return count
 
-# 6. APPLY LIGHTWEIGHT FEATURES
 
-print("\n⚙️ Extracting lightweight features (6, 29, 52, 75)...")
-tqdm.pandas()
+def add_shallow_features(df_all: pd.DataFrame) -> pd.DataFrame:
+    """Add features 006, 029, 052, 075 to df_all in-place."""
+    print("\n⚙️ Extracting 4 shallow stylometric features...")
+    text_series = df_all["Text After Processing"]
 
-df_all["feat_006_multiple_elongations"] = df_all["Text After Processing"].progress_apply(
-    feat_006_multiple_elongations
-)
-df_all["feat_029_semicolons"] = df_all["Text After Processing"].progress_apply(
-    feat_029_semicolons
-)
-df_all["feat_052_interjections"] = df_all["Text After Processing"].progress_apply(
-    feat_052_interjections
-)
-df_all["feat_075_active_voice_sentences"] = df_all[
-    "Text After Processing"
-].progress_apply(feat_075_active_voice_sentences)
+    df_all["feat_006_multiple_elongations"] = text_series.progress_apply(feat_006_multiple_elongations)
+    df_all["feat_029_semicolons"] = text_series.progress_apply(feat_029_semicolons)
+    df_all["feat_052_interjections"] = text_series.progress_apply(feat_052_interjections)
+    df_all["feat_075_active_voice_sentences"] = text_series.progress_apply(feat_075_active_voice_sentences)
 
-# 7. FEATURE 98: BERT CLS L2-NORM (SEMANTIC DENSITY PROXY)
+    return df_all
 
-print("\n⚙️ Extracting Feature 98 (BERT CLS L2-norm) in batches...")
-print("   This uses the L2-norm of the CLS embedding as a semantic density measure.")
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(f"   Using device: {device.upper()}")
+def add_bert_cls_l2norm(
+    df_all: pd.DataFrame,
+    text_col: str = "Text After Processing",
+    batch_size: int = 16,
+    max_length: int = 256,
+) -> pd.DataFrame:
+    """Add feature 098: BERT CLS L2-norm (batched & memory-friendly)."""
+    print("\n🧠 Extracting Feature 098: BERT CLS L2-norm")
 
-bert_tokenizer = AutoTokenizer.from_pretrained("aubmindlab/bert-base-arabertv2")
-bert_model = AutoModel.from_pretrained("aubmindlab/bert-base-arabertv2").to(device)
-bert_model.eval()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"   Using device: {device.upper()}")
 
-# Initialize column for feature 98 (L2-norm of CLS)
-feature_98_col = "feat_098_bert_cls_l2norm"
-if feature_98_col not in df_all.columns:
-    df_all[feature_98_col] = 0.0
+    bert_model_name = "aubmindlab/bert-base-arabertv2"
+    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    model = AutoModel.from_pretrained(bert_model_name).to(device)
+    model.eval()
 
-batch_size = 32  # Safe batch size for Colab
-texts = df_all["Text After Processing"].astype(str).tolist()
+    df_all["feat_098_bert_cls_l2norm"] = 0.0
 
-for i in tqdm(range(0, len(texts), batch_size), desc="BERT CLS batches"):
-    batch_texts = texts[i : i + batch_size]
+    texts = df_all[text_col].astype(str).tolist()
+    n = len(texts)
 
-    try:
-        # Tokenize batch (truncation length can be reduced to 256 if needed)
-        inputs = bert_tokenizer(
-            batch_texts,
-            return_tensors="pt",
-            max_length=512,
-            truncation=True,
-            padding=True,
-        ).to(device)
+    for start in tqdm(range(0, n, batch_size), desc="BERT batches"):
+        end = min(start + batch_size, n)
+        batch_texts = texts[start:end]
 
-        with torch.no_grad():
-            outputs = bert_model(**inputs)
-            # CLS embedding is the first token of last_hidden_state
-            cls_embeddings = outputs.last_hidden_state[:, 0, :]
-            # L2-norm across embedding dimension
-            norms = torch.norm(cls_embeddings, p=2, dim=1).cpu().numpy()
+        try:
+            inputs = tokenizer(
+                batch_texts,
+                return_tensors="pt",
+                max_length=max_length,
+                truncation=True,
+                padding=True,
+            ).to(device)
 
-        df_all.loc[i : i + len(batch_texts) - 1, feature_98_col] = norms
+            with torch.no_grad():
+                outputs = model(**inputs)
+                cls_embeddings = outputs.last_hidden_state[:, 0, :]  # CLS token
+                norms = torch.norm(cls_embeddings, p=2, dim=1).cpu().numpy()
 
-    except Exception as e:
-        print(f"⚠️ Error in batch starting at index {i}: {e}")
+            df_all.loc[start:end - 1, "feat_098_bert_cls_l2norm"] = norms
 
-    # Free memory after each batch
-    del inputs, outputs, cls_embeddings
-    torch.cuda.empty_cache()
+        except Exception as e:
+            print(f"   ⚠️ Skipping batch {start}-{end} due to error: {e}")
 
-print("✅ Feature 98 (CLS L2-norm) extraction complete.")
+        # Free memory regularly
+        del inputs
+        if device == "cuda":
+            torch.cuda.empty_cache()
+        gc.collect()
 
-# =========================================================================================
-# TASK 3.2: TRAIN / VALIDATION / TEST SPLIT (70 / 15 / 15, STRATIFIED BY TEXT TYPE)
-# =========================================================================================
+    print("✅ All 5 features extracted successfully.")
+    return df_all
 
-print("\n🔀 Performing 70-15-15 stratified split by 'Text Type'...")
 
-feature_cols = [
-    "feat_006_multiple_elongations",
-    "feat_029_semicolons",
-    "feat_052_interjections",
-    "feat_075_active_voice_sentences",
-    feature_98_col,
-]
+def stratified_split(df_all: pd.DataFrame, label_col: str = "Text Type"):
+    """Perform 70/15/15 stratified split on Text Type."""
+    print("\n🔀 Performing 70/15/15 stratified split...")
 
-train_df, temp_df = train_test_split(
-    df_all,
-    test_size=0.30,
-    random_state=42,
-    stratify=df_all["Text Type"],
-)
+    if label_col not in df_all.columns:
+        raise KeyError(f"Column '{label_col}' is missing; cannot perform stratified split.")
 
-val_df, test_df = train_test_split(
-    temp_df,
-    test_size=0.50,
-    random_state=42,
-    stratify=temp_df["Text Type"],
-)
-
-# =========================================================================================
-# REPORT GENERATION (HTML, PDF, WORD – LIGHTWEIGHT BUT SUFFICIENT)
-# =========================================================================================
-
-print("\n📝 Generating summary reports...")
-
-# 1) Split summary DataFrame
-split_summary = pd.DataFrame(
-    {
-        "Dataset_Part": [
-            "Total Dataset",
-            "Training Set (70%)",
-            "Validation Set (15%)",
-            "Test Set (15%)",
-        ],
-        "Total_Records": [len(df_all), len(train_df), len(val_df), len(test_df)],
-        "Human_Count": [
-            df_all["Text Type"].eq("Human").sum(),
-            train_df["Text Type"].eq("Human").sum(),
-            val_df["Text Type"].eq("Human").sum(),
-            test_df["Text Type"].eq("Human").sum(),
-        ],
-        "AI_Count": [
-            df_all["Text Type"].eq("AI").sum(),
-            train_df["Text Type"].eq("AI").sum(),
-            val_df["Text Type"].eq("AI").sum(),
-            test_df["Text Type"].eq("AI").sum(),
-        ],
-    }
-)
-
-# Add Human ratio column (percentage)
-split_summary["Human_Ratio_%"] = (
-    split_summary["Human_Count"] / split_summary["Total_Records"] * 100
-).round(0)
-
-# Feature statistics
-feature_stats = df_all[feature_cols].describe().round(4)
-feature_stats.index.name = "Feature"  # Make first column header explicit in Excel
-
-# 2) HTML report
-html_report = f"""
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-    <meta charset="UTF-8">
-    <title>Phase 3: Feature Engineering Report</title>
-    <style>
-        body {{
-            font-family: 'Arial', sans-serif;
-            padding: 20px;
-        }}
-        h1, h2, h3 {{
-            color: #1F4E79;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }}
-        th, td {{
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: center;
-        }}
-        th {{
-            background-color: #f2f2f2;
-        }}
-    </style>
-</head>
-<body>
-    <h1>📊 Phase 3: Feature Engineering & Data Splitting</h1>
-
-    <h3>🔀 Dataset Split Summary (70 / 15 / 15)</h3>
-    {split_summary.to_html(index=False)}
-
-    <h3>📈 Feature Distribution Statistics</h3>
-    {feature_stats.to_html()}
-</body>
-</html>
-"""
-
-with open("Feature_Engineering_Report.html", "w", encoding="utf-8") as f:
-    f.write(html_report)
-
-display(HTML(html_report))
-
-# 3) PDF (optional, if WeasyPrint is correctly installed)
-try:
-    weasyprint.HTML(string=html_report).write_pdf("Feature_Engineering_Report.pdf")
-    print("✅ PDF report generated: Feature_Engineering_Report.pdf")
-except Exception as e:
-    print(f"⚠️ PDF generation skipped: {e}")
-
-# 4) Simple Word document
-try:
-    doc = Document()
-    doc.add_heading("PHASE 3: FEATURE ENGINEERING REPORT", 0)
-
-    p = doc.add_paragraph()
-    p.add_run(f"Total Records: {len(df_all)}").bold = True
-
-    doc.add_heading("1. Dataset Split Summary", level=1)
-    table = doc.add_table(rows=len(split_summary) + 1, cols=len(split_summary.columns))
-    table.style = "Light Grid Accent 1"
-
-    # Header row
-    for j, col_name in enumerate(split_summary.columns):
-        cell = table.rows[0].cells[j]
-        cell.text = str(col_name)
-        for run in cell.paragraphs[0].runs:
-            run.bold = True
-
-    # Data rows
-    for i, row in split_summary.iterrows():
-        row_cells = table.add_row().cells
-        for j, value in enumerate(row):
-            row_cells[j].text = str(value)
-
-    doc.add_heading("2. Feature Statistics (Descriptive)", level=1)
-    stats_table = doc.add_table(
-        rows=len(feature_stats) + 1, cols=len(feature_stats.columns) + 1
+    train_df, temp_df = train_test_split(
+        df_all,
+        test_size=0.30,
+        random_state=42,
+        stratify=df_all[label_col],
     )
-    stats_table.style = "Light Grid Accent 1"
 
-    # Stats header
-    stats_table.rows[0].cells[0].text = "Feature"
-    for j, col in enumerate(feature_stats.columns, start=1):
-        stats_table.rows[0].cells[j].text = str(col)
+    val_df, test_df = train_test_split(
+        temp_df,
+        test_size=0.50,
+        random_state=42,
+        stratify=temp_df[label_col],
+    )
 
-    # Stats data
-    for i, (feat_name, row) in enumerate(feature_stats.iterrows(), start=1):
-        stats_table.rows[i].cells[0].text = feat_name
-        for j, value in enumerate(row, start=1):
-            stats_table.rows[i].cells[j].text = f"{value:.4f}"
+    split_summary = pd.DataFrame(
+        {
+            "Part": ["Total", "Train (70%)", "Validation (15%)", "Test (15%)"],
+            "Records": [len(df_all), len(train_df), len(val_df), len(test_df)],
+            "Human": [
+                df_all[label_col].eq("Human").sum(),
+                train_df[label_col].eq("Human").sum(),
+                val_df[label_col].eq("Human").sum(),
+                test_df[label_col].eq("Human").sum(),
+            ],
+            "AI": [
+                df_all[label_col].eq("AI").sum(),
+                train_df[label_col].eq("AI").sum(),
+                val_df[label_col].eq("AI").sum(),
+                test_df[label_col].eq("AI").sum(),
+            ],
+        }
+    )
 
-    doc.save("Feature_Engineering_Report.docx")
-    print("✅ Word report generated: Feature_Engineering_Report.docx")
-except Exception as e:
-    print(f"⚠️ Word report generation skipped: {e}")
+    return train_df, val_df, test_df, split_summary
+
 
 # =========================================================================================
-# FINAL SAVE: UNIFIED EXCEL FILE FOR PHASE 4
+# Main pipeline
 # =========================================================================================
+def main():
+    print("⏳ Installing system dependencies and libraries...")
+    print("🚀 PHASE 3 STARTED: Feature Engineering + 8 Excel Sheets + Pickle")
+    print("=" * 80)
 
-print("\n💾 Saving unified Excel file with all splits and features...")
+    # ------------------------------------------------------------------
+    # 1. Load preprocessing_results.xlsx
+    # ------------------------------------------------------------------
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    input_path = os.path.join(base_dir, "preprocessing_results.xlsx")
+    df_all, split_dfs = load_preprocessing_excel(input_path)
 
-output_file = "Complete_Dataset_With_Features.xlsx"
+    # ------------------------------------------------------------------
+    # 2. Add stylometric features (shallow)
+    # ------------------------------------------------------------------
+    df_all = add_shallow_features(df_all)
 
-with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
-    train_df.to_excel(writer, sheet_name="Train", index=False)
-    val_df.to_excel(writer, sheet_name="Validation", index=False)
-    test_df.to_excel(writer, sheet_name="Test", index=False)
-    df_all.to_excel(writer, sheet_name="All_Data", index=False)
-    split_summary.to_excel(writer, sheet_name="Split_Summary", index=False)
-    feature_stats.to_excel(writer, sheet_name="Feature_Stats", index=True)
+    # ------------------------------------------------------------------
+    # 3. Add BERT CLS L2-norm (batched)
+    # ------------------------------------------------------------------
+    df_all = add_bert_cls_l2norm(df_all, text_col="Text After Processing")
 
-print(f"✅ SUCCESS! Saved main dataset file: {output_file}")
+    feature_cols = [
+        "feat_006_multiple_elongations",
+        "feat_029_semicolons",
+        "feat_052_interjections",
+        "feat_075_active_voice_sentences",
+        "feat_098_bert_cls_l2norm",
+    ]
 
-print("\n📥 Preparing downloads...")
-files.download(output_file)
-try:
-    files.download("Feature_Engineering_Report.pdf")
-except:
-    pass
-try:
-    files.download("Feature_Engineering_Report.docx")
-except:
-    pass
+    # ------------------------------------------------------------------
+    # 4. Stratified split 70/15/15
+    # ------------------------------------------------------------------
+    train_df, val_df, test_df, split_summary = stratified_split(df_all, label_col="Text Type")
+    feature_stats = df_all[feature_cols].describe().round(4)
 
-print("\n🎯 PHASE 3 COMPLETE")
+    print("\n📋 Split summary:")
+    print(split_summary.to_string(index=False))
+
+    # ------------------------------------------------------------------
+    # 5. Save Excel with 8 sheets
+    # ------------------------------------------------------------------
+    print("\n💾 Saving 'Complete_Dataset_With_Features.xlsx' (up to 8 sheets)...")
+    output_excel = os.path.join(base_dir, "Complete_Dataset_With_Features.xlsx")
+
+    with pd.ExcelWriter(output_excel, engine="openpyxl") as writer:
+        train_df.to_excel(writer, sheet_name="Train", index=False)
+        val_df.to_excel(writer, sheet_name="Validation", index=False)
+        test_df.to_excel(writer, sheet_name="Test", index=False)
+        df_all.to_excel(writer, sheet_name="All_Data", index=False)
+        split_summary.to_excel(writer, sheet_name="Split_Summary", index=False)
+        feature_stats.to_excel(writer, sheet_name="Feature_Stats", index=True)
+
+        # Optional split sheets (only if they exist)
+        if "by_polishing" in split_dfs:
+            split_dfs["by_polishing"].to_excel(
+                writer, sheet_name="by_polishing", index=False
+            )
+        if "from_title_and_content" in split_dfs:
+            split_dfs["from_title_and_content"].to_excel(
+                writer, sheet_name="from_title_and_content", index=False
+            )
+
+    print(f"✅ Excel saved: {output_excel}")
+
+    # ------------------------------------------------------------------
+    # 6. Save Word report
+    # ------------------------------------------------------------------
+    print("\n💾 Saving 'Complete_Dataset_With_Features.docx'...")
+
+    doc = Document()
+    doc.add_heading("Feature Engineering Report - Phase 3", 0)
+    doc.add_paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    doc.add_paragraph(
+        f"Total Records: {len(df_all):,} | Engineered Features: {len(feature_cols)}"
+    )
+
+    # Data split table
+    doc.add_heading("1. Data Split Summary", level=1)
+    table = doc.add_table(rows=len(split_summary) + 1, cols=len(split_summary.columns))
+    style_word_table(table)
+
+    for i, col in enumerate(split_summary.columns):
+        table.rows[0].cells[i].text = str(col)
+
+    for i, (_, row) in enumerate(split_summary.iterrows()):
+        for j, val in enumerate(row):
+            if isinstance(val, (int, np.integer)):
+                table.rows[i + 1].cells[j].text = f"{int(val):,}"
+            else:
+                table.rows[i + 1].cells[j].text = str(val)
+
+    # Sheet overview (derived dynamically from writer logic)
+    doc.add_heading("2. Generated Excel Sheets", level=1)
+    sheet_names = [
+        "Train",
+        "Validation",
+        "Test",
+        "All_Data",
+        "Split_Summary",
+        "Feature_Stats",
+    ]
+    if "by_polishing" in split_dfs:
+        sheet_names.append("by_polishing")
+    if "from_title_and_content" in split_dfs:
+        sheet_names.append("from_title_and_content")
+
+    doc.add_paragraph("\n".join(f"• {name}" for name in sheet_names))
+
+    word_path = os.path.join(base_dir, "Complete_Dataset_With_Features.docx")
+    doc.save(word_path)
+    print("✅ Word report saved.")
+
+    # ------------------------------------------------------------------
+    # 7. Save pickle for Phase 4
+    # ------------------------------------------------------------------
+    print("\n💾 Saving 'phase3_splits.pkl' for modeling phase...")
+
+    splits_dict = {
+        "train_indices": train_df.index.tolist(),
+        "val_indices": val_df.index.tolist(),
+        "test_indices": test_df.index.tolist(),
+        "df_all": df_all,       # full DataFrame with all features
+        "feature_cols": feature_cols,
+    }
+    pickle_path = os.path.join(base_dir, "phase3_splits.pkl")
+    joblib.dump(splits_dict, pickle_path)
+    print("✅ phase3_splits.pkl saved.")
+
+    # ------------------------------------------------------------------
+    # 8. Final log
+    # ------------------------------------------------------------------
+    print("\n" + "=" * 80)
+    print("🎉 PHASE 3 COMPLETED SUCCESSFULLY!")
+    print("=" * 80)
+    print("Output Files:")
+    print(f"  1) {output_excel}")
+    print(f"  2) {word_path}")
+    print(f"  3) {pickle_path}")
+    print("\nData Distribution:")
+    print(f"  • Train:      {len(train_df):,} ({len(train_df) / len(df_all) * 100:.1f}%)")
+    print(f"  • Validation: {len(val_df):,} ({len(val_df) / len(df_all) * 100:.1f}%)")
+    print(f"  • Test:       {len(test_df):,} ({len(test_df) / len(df_all) * 100:.1f}%)")
+    print("\nEngineered Features:")
+    for feat in feature_cols:
+        print(f"  • {feat}")
+    print("\n🚀 Ready for Phase 4 (modeling.py)")
+    print("=" * 80)
 
 
-
+if __name__ == "__main__":
+    main()
