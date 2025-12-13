@@ -1,0 +1,28 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Data files (avoid pushing large data)
+data/raw/
+data/processed/*.xlsx
+*.csv
+*.zip
+*.rar
+
+# Office temporary files
+~$*.docx
+~$*.xlsx
+
+# OS system files
+.DS_Store
+Thumbs.db
